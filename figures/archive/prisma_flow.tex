@@ -1,0 +1,45 @@
+% PRISMA-style flow of the semi-automated literature discovery & screening
+% pipeline. Self-contained TikZ; requires \usepackage{tikz} and
+% \usetikzlibrary{arrows.meta,positioning,fit} (already loaded in the preamble).
+% Insert with \input{Figures/prisma_flow} inside a figure environment.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    node distance=6mm and 10mm,
+    box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt,
+                text width=46mm, minimum height=10mm, fill=blue!4, line width=0.5pt},
+    excl/.style={draw, rounded corners=2pt, align=left, inner sep=4pt,
+                 text width=42mm, minimum height=9mm, fill=red!4, line width=0.5pt},
+    stage/.style={rotate=90, anchor=center, font=\scriptsize\sffamily, text=black!60},
+    arr/.style={-{Latex[length=2mm]}, line width=0.5pt},
+]
+% ----- main column -----
+\node[box] (db)  {Records identified via automated\\ database search (OpenAlex API,\\ Boolean phrase queries)\\ \textbf{$n = 2{,}836$}};
+\node[box, right=64mm of db] (seed) {Records from expert curation\\ (original survey seed corpus)\\ \textbf{$n = 263$}};
+
+\node[box, below=10mm of db] (dedup) {Records after duplicate, near-duplicate,\\ and seed-overlap removal\\ \textbf{$n = 2{,}580$ new}};
+\node[box, below=8mm of dedup] (screen) {Records screened by automated\\ relevance gate (embedding-based\\ topical + seed-similarity criteria)\\ \textbf{$n = 2{,}580$}};
+\node[box, below=8mm of screen] (elig) {Records assessed for eligibility\\ (taxonomy classification, ranking,\\ and human cross-review)\\ \textbf{$n = 581$}};
+\node[box, below=8mm of elig, fill=green!6] (incl) {Studies in living bibliography\\ \textbf{$n = 385$}\ \ ($263$ seed $+\,122$ newly added)};
+
+% ----- exclusion boxes -----
+\node[excl, right=12mm of dedup]  (e1) {Removed: duplicate /\\ near-duplicate and records\\ already in seed corpus\\ \textbf{$n = 256$}};
+\node[excl, right=12mm of screen] (e2) {Excluded: below relevance\\ floor (off-topic or low\\ seed similarity)\\ \textbf{$n = 1{,}999$}};
+\node[excl, right=12mm of elig]   (e3) {Not selected in curated\\ ranking (beyond top-$N$\\ per class; archived in\\ full scored list)\\ \textbf{$n = 459$}};
+
+% ----- arrows -----
+\draw[arr] (db) -- (dedup);
+% seed bypasses automated screening and feeds the included set down the far right
+\draw[arr] (seed.south) -- (seed.south |- incl.east) -- (incl.east);
+\draw[arr] (dedup) -- (screen);
+\draw[arr] (screen) -- (elig);
+\draw[arr] (elig) -- (incl);
+\draw[arr] (dedup.east) -- (e1.west);
+\draw[arr] (screen.east) -- (e2.west);
+\draw[arr] (elig.east) -- (e3.west);
+
+% ----- stage labels (left rail) -----
+\node[stage, left=4mm of db.west, yshift=-3mm] {Identification};
+\node[stage, left=4mm of screen.west] {Screening};
+\node[stage, left=4mm of elig.west] {Eligibility};
+\node[stage, left=4mm of incl.west] {Included};
+\end{tikzpicture}

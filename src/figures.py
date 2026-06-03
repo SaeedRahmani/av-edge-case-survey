@@ -58,37 +58,43 @@ CLASS_COLORS = {
     "Knowledge-driven": "#e08214",
 }
 
-# Curated domain concepts -> regex over (title + abstract). Node size = number
-# of papers matching; node colour = dominant class of those papers. Multi-line
-# labels (\n) keep nodes compact, as in a concept map.
+# Standard domain keywords (label -> regex). These are recognised AV edge-case
+# terms; the NODES, their SIZE, and the EDGES are all derived from how often the
+# terms actually occur (and co-occur) in the titles + abstracts of the corpus,
+# i.e. they are data-driven keyword occurrences, not hand-assigned concepts.
+# Only terms that occur in at least `min_count` papers are shown.
 CONCEPTS = [
-    # perception
-    ("out-of-distribution\ndetection", r"out[- ]of[- ]distribution|\bood\b"),
-    ("anomaly detection", r"anomal"),
-    ("autoencoder\nVAE", r"autoencoder|variational|\bvae\b"),
-    ("semantic\nsegmentation", r"segmentation"),
-    ("novelty detection", r"novelty"),
-    ("uncertainty\nconfidence", r"uncertaint|confidence|bayesian|calibrat"),
-    ("dataset\nbenchmark", r"dataset|benchmark"),
+    ("anomaly\ndetection", r"anomal"),
+    ("out-of-distribution\ndetection", r"out[\s\-]of[\s\-]distribution|\bood\b"),
+    ("novelty\ndetection", r"novelty"),
+    ("outlier\ndetection", r"outlier"),
+    ("semantic\nsegmentation", r"semantic segmentation|\bsegmentation\b"),
+    ("object\ndetection", r"object detection"),
+    ("uncertainty\nestimation", r"uncertaint|\bconfidence\b|bayesian|calibrat"),
+    ("autoencoder /\nreconstruction", r"autoencoder|reconstruction|variational"),
+    ("generative\nmodel", r"\bgan\b|generative|diffusion model"),
+    ("deep learning", r"deep learning"),
+    ("neural\nnetwork", r"neural network|\bcnn\b|\bdnn\b"),
+    ("foundation /\nVL model", r"foundation model|vision.?language|large language model|\bllm\b"),
     ("runtime\nmonitoring", r"runtime monitor|online monitor|\bmonitoring\b"),
-    ("neural networks\ndeep learning", r"deep learning|neural network|convolutional|\bcnn\b"),
-    ("transfer &\nfew-shot learning", r"transfer learning|few[- ]shot|zero[- ]shot"),
-    ("foundation models\nLLM", r"foundation model|vision.?language|large language model|\bllm\b"),
-    ("feature &\nlatent space", r"latent space|feature space|embedding space|representation learning"),
-    # trajectory
-    ("scenario\ngeneration", r"scenario generation|scenario-based|generat\w+ scenario"),
-    ("safety-critical\nscenarios", r"safety[- ]critical|critical scenario"),
-    ("surrogate safety\nmeasures", r"surrogate|time[- ]to[- ]collision|\bttc\b|post[- ]encroachment|traffic conflict"),
-    ("adversarial &\nfalsification", r"adversarial|falsif|search[- ]based test"),
-    ("importance sampling\nrare event", r"importance sampling|rare[- ]event|risk estimation"),
-    ("trajectory &\nmotion planning", r"trajectory predict|motion planning|motion predict|path planning"),
-    ("reinforcement\nlearning", r"reinforcement learning|\bdrl\b"),
-    ("simulation\nsim2real", r"simulation|sim2real|sim-to-real|\bcarla\b"),
-    ("testing &\nverification", r"\btesting\b|verification|\bvalidation\b"),
-    # knowledge-driven
-    ("ontology &\nknowledge graph", r"ontolog|knowledge graph|knowledge[- ]based"),
-    ("influencing factors\n& ODD", r"influencing factor|operational design domain|\bodd\b|expert knowledge"),
-    ("crash &\naccident data", r"crash|accident|naturalistic driving"),
+    ("corner /\nedge case", r"corner[\s\-]case|edge[\s\-]case"),
+    ("scenario\ngeneration", r"scenario generation|scenario[\s\-]based|generat\w+ scenario"),
+    ("safety-critical\nscenario", r"safety[\s\-]critical|critical scenario"),
+    ("surrogate\nsafety / TTC", r"surrogate|time[\s\-]to[\s\-]collision|\bttc\b|post[\s\-]encroachment|traffic conflict"),
+    ("near-miss", r"near[\s\-]miss"),
+    ("importance\nsampling", r"importance sampling|rare event|risk estimation"),
+    ("reinforcement\nlearning", r"reinforcement learning"),
+    ("adversarial /\nfalsification", r"adversarial|falsif|search[\s\-]based test"),
+    ("simulation /\nsim-to-real", r"simulation|sim[\s\-]?to[\s\-]?real|\bcarla\b"),
+    ("verification &\nvalidation", r"verification|\bvalidation\b"),
+    ("naturalistic\ndriving", r"naturalistic"),
+    ("ontology /\nknowledge graph", r"ontolog|knowledge graph|knowledge[\s\-]based"),
+    ("operational\ndesign domain", r"operational design domain|\bodd\b"),
+    ("lidar", r"\blidar\b"),
+    ("radar", r"\bradar\b"),
+    ("camera", r"\bcamera\b"),
+    ("point cloud", r"point cloud"),
+    ("benchmark /\ndataset", r"\bbenchmark\b|\bdataset\b"),
 ]
 
 
@@ -198,7 +204,12 @@ def fig_concept_network(rows, outdir):
                 M[i, j] = True
 
     counts = M.sum(axis=0)
-    keep = [j for j in range(len(CONCEPTS)) if counts[j] >= 3]
+    # keep the most frequent real keywords (occurring in >= min_count papers),
+    # capped to keep the map legible
+    min_count = max(5, int(0.02 * len(rows)))
+    cand = [j for j in range(len(CONCEPTS)) if counts[j] >= min_count]
+    cand.sort(key=lambda j: -counts[j])
+    keep = sorted(cand[:22])
     labels = [CONCEPTS[j][0] for j in keep]
     Mk = M[:, keep]
     counts = counts[keep]
@@ -223,26 +234,27 @@ def fig_concept_network(rows, outdir):
     G.remove_nodes_from([j for j in list(G.nodes) if G.degree(j) == 0])
     nodes = list(G.nodes)
 
-    pos = nx.spring_layout(G, k=2.6 / np.sqrt(max(len(nodes), 1)), seed=11,
-                           weight="weight", iterations=600)
+    pos = nx.spring_layout(G, k=4.6 / np.sqrt(max(len(nodes), 1)), seed=5,
+                           weight="weight", iterations=1200)
 
-    cmax = counts.max() if len(counts) else 1
-    node_sizes = [260 + 240 * np.sqrt(counts[j]) for j in nodes]
+    # size by frequency but cap so the largest hub does not dominate
+    capped = {j: min(counts[j], int(0.35 * len(rows))) for j in nodes}
+    node_sizes = [150 + 130 * np.sqrt(capped[j]) for j in nodes]
     node_colors = [CLASS_COLORS[node_class[j]] for j in nodes]
     ew = [G[u][v]["weight"] for u, v in G.edges]
     ewmax = max(ew) if ew else 1
     widths = [0.3 + 2.2 * (w / ewmax) for w in ew]
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.6))
-    nx.draw_networkx_edges(G, pos, width=widths, edge_color="#9fb3c8", alpha=0.5,
+    fig, ax = plt.subplots(figsize=(8.4, 5.4))
+    nx.draw_networkx_edges(G, pos, width=widths, edge_color="#9fb3c8", alpha=0.45,
                            connectionstyle="arc3,rad=0.08", ax=ax)
     nx.draw_networkx_nodes(G, pos, nodelist=nodes, node_color=node_colors,
                            node_size=node_sizes, linewidths=0.6, edgecolors="white",
                            alpha=0.95, ax=ax)
     for j in nodes:
         ax.text(pos[j][0], pos[j][1], labels[j], ha="center", va="center",
-                fontsize=6.6, color="black", zorder=5,
-                linespacing=0.95)
+                fontsize=6.0, color="black", zorder=5,
+                linespacing=0.9)
     handles = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=col,
                           markersize=8, label=cls) for cls, col in CLASS_COLORS.items()]
     ax.legend(handles=handles, frameon=False, fontsize=8, loc="lower center",
