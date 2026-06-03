@@ -1,114 +1,42 @@
 """
-lib_classify.py
----------------
-Shared, dependency-light classification logic used by BOTH the paper-side
-analysis and the living-survey repository.
+classify.py
+-----------
+Shared classifier used by BOTH the paper-side analysis and the living-survey
+repository.
 
-Approach (transparent + reproducible):
-  * embed each paper (title + abstract) with a sentence-transformer
-    (all-MiniLM-L6-v2, the de-facto standard small model);
-  * embed a set of *class anchors* whose wording is taken directly from the
-    survey's own taxonomy (top-level classes + subsections);
-  * assign each paper to the nearest class/subsection by cosine similarity
-    (nearest-centroid over the anchor prototypes).
+Unlike the earlier version (which compared papers to hand-written anchor
+sentences), categories are now learnt from GROUND TRUTH: the centroids of the
+seed papers whose category is known from the section of the survey that cites
+them (see analysis/section_labels.py). A paper is assigned to the nearest class
+centroid; a small off-topic anchor set flags non-AV papers.
 
-The anchor text is intentionally verbatim-aligned with the paper so the
-data-driven assignment *recovers the manual taxonomy* rather than inventing a
-new one.  A relevance gate (max anchor similarity) flags off-topic papers for
-human review.
+Classes (4): Perception-related, Trajectory-related, Knowledge-driven, Assessment.
+
+The labelled seed lives in data/seed_corpus.csv (column `category`, with
+`label_source == groundtruth` for the section-cited papers used to build the
+centroids).
 """
 from __future__ import annotations
 
+import csv
 import functools
+import os
 
 import numpy as np
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# The automated classifier targets the three DETECTION classes only. "Assessment"
+# is a cross-cutting category that overlaps the methods it evaluates, so as a
+# prediction target it steals papers and is unreliable (43% LOO recall). It is
+# therefore kept as a ground-truth-only seed category for the figures (see
+# FIGURE_CATEGORIES) but is NOT a centroid the classifier can assign to.
+CLASSES = ["Perception-related", "Trajectory-related", "Knowledge-driven"]
+FIGURE_CATEGORIES = CLASSES + ["Assessment"]
 
-# Top-level classes -> subsections, each with an anchor description drawn from
-# the survey text. The first sentence names the class; the rest are cue phrases.
-TAXONOMY = {
-    "Perception-related": {
-        "Reconstructive and Generative": (
-            "Perception-related edge cases detected by reconstructive and "
-            "generative models: autoencoders, GANs, VAEs, normalizing flows, "
-            "image reconstruction error, out-of-distribution and novelty "
-            "detection in camera or LiDAR data."
-        ),
-        "Probability and Confidence Scores": (
-            "Perception edge cases detected via probability-based methods and "
-            "confidence scores: softmax uncertainty, Bayesian deep learning, "
-            "Monte Carlo dropout, calibration, epistemic uncertainty in object "
-            "detection and semantic segmentation."
-        ),
-        "Feature and Activation Extraction": (
-            "Perception edge cases detected by feature and activation-value "
-            "extraction: deep feature embeddings, latent space distance, "
-            "activation patterns of neural networks for anomaly and corner "
-            "case detection in images."
-        ),
-        "Foundation Model and Adaptive Learning": (
-            "Perception edge cases detected with foundation models, vision "
-            "language models, large pretrained models, zero-shot and adaptive "
-            "or continual learning for novel object and scene understanding."
-        ),
-        "Other Perception Methods": (
-            "Other perception-related corner case detection methods including "
-            "reconstruction-free, prediction-based, optical flow, or "
-            "multi-frame temporal consistency checks on sensor data."
-        ),
-    },
-    "Trajectory-related": {
-        "Surrogate Safety Metrics": (
-            "Trajectory-related edge cases identified with surrogate safety "
-            "measures: time-to-collision, post-encroachment time, brake threat "
-            "number, conflict indicators, near-miss and traffic conflict "
-            "metrics."
-        ),
-        "Probability Estimation": (
-            "Trajectory-related safety-critical scenarios identified via "
-            "probability estimation and risk: importance sampling, rare-event "
-            "probability, statistical risk estimation of collisions and "
-            "criticality."
-        ),
-        "Machine Learning (trajectory)": (
-            "Trajectory and motion edge cases detected with machine learning: "
-            "trajectory prediction, reinforcement learning, anomaly detection "
-            "in driving behavior, motion planning under uncertainty."
-        ),
-        "Challenging the System Under Test": (
-            "Safety-critical scenario generation by challenging the system "
-            "under test: adversarial agents, falsification, search-based "
-            "testing, scenario optimization to provoke failures of the "
-            "autonomous driving stack."
-        ),
-        "Novel Scenario Generation": (
-            "Generation of novel and critical driving scenarios: naturalistic "
-            "driving data, scenario sampling, simulation-based scenario "
-            "generation, parameterized concrete scenarios for testing."
-        ),
-    },
-    "Knowledge-driven": {
-        "Influencing Factors": (
-            "Knowledge-driven edge cases defined from influencing factors and "
-            "expert knowledge: operational design domain attributes, ontology "
-            "of driving environment, taxonomy of influencing conditions."
-        ),
-        "Formalisation of Description": (
-            "Formalisation of edge case description using expert rules, "
-            "ontologies, knowledge graphs, scenario description languages and "
-            "formal logic to specify challenging situations."
-        ),
-        "Qualification and Classification": (
-            "Knowledge-driven qualification and classification of scenarios by "
-            "criticality and relevance using heuristic multi-criteria expert "
-            "rules and risk reasoning."
-        ),
-    },
-}
+HERE = os.path.dirname(os.path.abspath(__file__))
+SEED_CSV = os.path.join(os.path.dirname(HERE), "data", "seed_corpus.csv")
 
-# A neutral / off-topic anchor set: if a paper is closest to one of these,
-# it is likely NOT an AV edge-case paper and should be flagged for review.
+# If a paper is closest to one of these it is likely NOT an AV edge-case paper.
 OFFTOPIC_ANCHORS = [
     "General machine learning theory unrelated to autonomous driving.",
     "Medical imaging and healthcare diagnosis.",
@@ -128,57 +56,91 @@ def get_model():
 
 def embed(texts):
     model = get_model()
-    return model.encode(
-        list(texts), normalize_embeddings=True, show_progress_bar=False, batch_size=64
+    return np.asarray(
+        model.encode(list(texts), normalize_embeddings=True,
+                     show_progress_bar=False, batch_size=64)
     )
 
 
-def _flat_anchors():
-    """Return (labels, vectors) for every subsection anchor + offtopic anchors."""
-    labels, texts = [], []
-    for cls, subs in TAXONOMY.items():
-        for sub, desc in subs.items():
-            labels.append((cls, sub))
-            texts.append(desc)
-    off_start = len(labels)
-    for t in OFFTOPIC_ANCHORS:
-        labels.append(("__OFFTOPIC__", "__OFFTOPIC__"))
-        texts.append(t)
-    return labels, np.asarray(embed(texts)), off_start
+def _doc(r):
+    return (r.get("title", "") + ". " + (r.get("abstract", "") or "")).strip()
+
+
+@functools.lru_cache(maxsize=1)
+def _centroids_and_offtopic(seed_csv=SEED_CSV):
+    """Build per-class centroids from the ground-truth-labelled seed papers."""
+    with open(seed_csv, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    train = [r for r in rows
+             if r.get("label_source") == "groundtruth" and r.get("category") in CLASSES]
+    if not train:
+        raise RuntimeError("no ground-truth training rows found in seed_corpus.csv")
+    vecs = embed([_doc(r) for r in train])
+    cents = {}
+    for c in CLASSES:
+        idx = [i for i, r in enumerate(train) if r["category"] == c]
+        v = vecs[idx].mean(axis=0)
+        cents[c] = v / (np.linalg.norm(v) + 1e-9)
+    cmat = np.vstack([cents[c] for c in CLASSES])
+    off = embed(OFFTOPIC_ANCHORS)
+    return cmat, off
 
 
 def classify(records, relevance_threshold=0.0):
     """
-    records: list of dicts each with 'title' and (optional) 'abstract'.
-    Adds keys: class, subsection, class_score (cosine to best on-topic anchor),
-               offtopic_score, relevant (bool), margin (best on-topic minus best off-topic).
-
-    relevance_threshold gates on (best_ontopic - best_offtopic) margin.
+    records: list of dicts with 'title' (+ optional 'abstract').
+    Adds: class, class_score (cosine to nearest class centroid),
+          offtopic_score, margin (class_score - best off-topic), relevant.
     """
-    labels, anchor_vecs, off_start = _flat_anchors()
-    texts = [
-        (r.get("title", "") + ". " + (r.get("abstract", "") or "")).strip()
-        for r in records
-    ]
-    doc_vecs = np.asarray(embed(texts))
-    sims = doc_vecs @ anchor_vecs.T  # cosine (vectors are normalized)
-
-    on = sims[:, :off_start]
-    off = sims[:, off_start:]
-    best_on_idx = on.argmax(axis=1)
-    best_on = on.max(axis=1)
-    best_off = off.max(axis=1)
-    margin = best_on - best_off
+    cmat, off = _centroids_and_offtopic()
+    vecs = embed([_doc(r) for r in records])
+    cls_sims = vecs @ cmat.T          # N x 4
+    off_sims = vecs @ off.T           # N x K
+    best_cls = cls_sims.argmax(axis=1)
+    best_cls_sim = cls_sims.max(axis=1)
+    best_off = off_sims.max(axis=1)
+    margin = best_cls_sim - best_off
 
     out = []
     for i, r in enumerate(records):
-        cls, sub = labels[best_on_idx[i]]
         rr = dict(r)
-        rr["class"] = cls
-        rr["subsection"] = sub
-        rr["class_score"] = round(float(best_on[i]), 4)
+        rr["class"] = CLASSES[best_cls[i]]
+        rr["class_score"] = round(float(best_cls_sim[i]), 4)
         rr["offtopic_score"] = round(float(best_off[i]), 4)
         rr["margin"] = round(float(margin[i]), 4)
         rr["relevant"] = bool(margin[i] >= relevance_threshold)
         out.append(rr)
     return out
+
+
+def loo_report(seed_csv=SEED_CSV):
+    """Leave-one-out accuracy of the centroid classifier on the labelled seed."""
+    from collections import Counter
+
+    with open(seed_csv, encoding="utf-8") as f:
+        rows = [r for r in csv.DictReader(f)
+                if r.get("label_source") == "groundtruth" and r.get("category") in CLASSES]
+    vecs = embed([_doc(r) for r in rows])
+    y = [r["category"] for r in rows]
+    ok = 0
+    per, perok = Counter(), Counter()
+    for i in range(len(rows)):
+        cents = {}
+        for c in CLASSES:
+            idx = [j for j in range(len(rows)) if j != i and y[j] == c]
+            if idx:
+                v = vecs[idx].mean(0)
+                cents[c] = v / (np.linalg.norm(v) + 1e-9)
+        pred = max(cents, key=lambda c: vecs[i] @ cents[c])
+        per[y[i]] += 1
+        if pred == y[i]:
+            ok += 1
+            perok[y[i]] += 1
+    print(f"LOO centroid accuracy: {ok}/{len(rows)} = {ok/len(rows):.0%}")
+    for c in CLASSES:
+        if per[c]:
+            print(f"  {c:20s} recall {perok[c]}/{per[c]} = {perok[c]/per[c]:.0%}")
+
+
+if __name__ == "__main__":
+    loo_report()

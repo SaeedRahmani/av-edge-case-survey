@@ -51,12 +51,18 @@ plt.rcParams.update(
     }
 )
 
-CLASSES = ["Perception-related", "Trajectory-related", "Knowledge-driven"]
+# 4 categories. Assessment is a ground-truth-only seed category; the automated
+# classifier targets the other three.
+CLASSES = ["Perception-related", "Trajectory-related", "Knowledge-driven", "Assessment"]
 CLASS_COLORS = {
     "Perception-related": "#2f6fd0",
     "Trajectory-related": "#2ca25f",
     "Knowledge-driven": "#e08214",
+    "Assessment": "#8c6bb1",
 }
+# short legend names
+CLASS_SHORT = {"Perception-related": "Perception", "Trajectory-related": "Trajectory",
+               "Knowledge-driven": "Knowledge", "Assessment": "Assessment"}
 
 # Standard domain keywords (label -> regex). These are recognised AV edge-case
 # terms; the NODES, their SIZE, and the EDGES are all derived from how often the
@@ -99,8 +105,12 @@ CONCEPTS = [
 
 
 def load(path):
+    """Rows used in the category figures: ground-truth seed + discovered only
+    (fig_include == 1), with a known category."""
     with open(path, encoding="utf-8") as f:
-        rows = [r for r in csv.DictReader(f) if r.get("class") in CLASSES]
+        rows = [r for r in csv.DictReader(f)
+                if str(r.get("fig_include", "")).strip() in ("1", "1.0", "True")
+                and r.get("category") in CLASSES]
     return rows
 
 
@@ -121,14 +131,14 @@ def fig_trend(rows, outdir, ymin, ymax):
             y = int(str(r["year"])[:4])
         except (ValueError, TypeError):
             continue
-        if ymin <= y <= ymax and r["class"] in counts:
-            counts[r["class"]][y - ymin] += 1
+        if ymin <= y <= ymax and r["category"] in counts:
+            counts[r["category"]][y - ymin] += 1
 
     fig, ax = plt.subplots(figsize=(3.5, 2.4))
     bottom = np.zeros(len(years))
     for c in CLASSES:
         vals = np.array(counts[c])
-        ax.bar(years, vals, bottom=bottom, label=c, color=CLASS_COLORS[c],
+        ax.bar(years, vals, bottom=bottom, label=CLASS_SHORT[c], color=CLASS_COLORS[c],
                width=0.82, edgecolor="white", linewidth=0.3)
         bottom += vals
     ax.set_xlabel("Publication year")
@@ -160,7 +170,7 @@ def fig_topic_heatmap(rows, outdir, n_topics=9):
     mat = np.zeros((n_topics, len(CLASSES)))
     tcount = Counter(topics)
     for t, r in zip(topics, rows):
-        mat[t, CLASSES.index(r["class"])] += 1
+        mat[t, CLASSES.index(r["category"])] += 1
     rs = mat.sum(axis=1, keepdims=True)
     frac = np.divide(mat, rs, out=np.zeros_like(mat), where=rs > 0)
     order = sorted(range(n_topics), key=lambda t: (frac[t].argmax(), -frac[t].max()))
@@ -171,7 +181,7 @@ def fig_topic_heatmap(rows, outdir, n_topics=9):
     fig, ax = plt.subplots(figsize=(3.5, 3.0))
     im = ax.imshow(frac, cmap=cmap, vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(CLASSES)))
-    ax.set_xticklabels(["Perception", "Trajectory", "Knowledge"], rotation=20, ha="right")
+    ax.set_xticklabels([CLASS_SHORT[c] for c in CLASSES], rotation=25, ha="right")
     ax.set_yticks(range(n_topics))
     ax.set_yticklabels(ylabels, fontsize=6.5)
     for i in range(n_topics):
@@ -193,7 +203,7 @@ def fig_concept_network(rows, outdir):
     import networkx as nx
 
     texts = [((r["title"] + " " + (r.get("abstract") or "")).lower()) for r in rows]
-    cls_idx = np.array([CLASSES.index(r["class"]) for r in rows])
+    cls_idx = np.array([CLASSES.index(r["category"]) for r in rows])
 
     # membership matrix: paper x concept
     M = np.zeros((len(rows), len(CONCEPTS)), dtype=bool)
@@ -222,20 +232,30 @@ def fig_concept_network(rows, outdir):
 
     co = Mk.T.astype(int) @ Mk.astype(int)  # concept co-occurrence (papers sharing both)
     n = len(keep)
-    edge_thr = max(4, int(0.02 * len(rows)))
 
+    # Build a k-nearest-neighbour keyword graph: every term is linked to its few
+    # strongest co-occurring partners. This keeps the graph connected regardless
+    # of corpus size (an absolute threshold fragments the smaller paper corpus).
+    min_co = 2
+    topk = 4
     G = nx.Graph()
-    for j in range(n):
-        G.add_node(j)
+    G.add_nodes_from(range(n))
     for a in range(n):
-        for b in range(a + 1, n):
-            if co[a, b] >= edge_thr:
-                G.add_edge(a, b, weight=int(co[a, b]))
+        partners = sorted(((int(co[a, b]), b) for b in range(n)
+                           if b != a and co[a, b] >= min_co), reverse=True)[:topk]
+        for w, b in partners:
+            if G.has_edge(a, b):
+                continue
+            G.add_edge(a, b, weight=w)
     G.remove_nodes_from([j for j in list(G.nodes) if G.degree(j) == 0])
+    # keep only the largest connected component so the layout does not scatter
+    if G.number_of_nodes() and not nx.is_connected(G):
+        giant = max(nx.connected_components(G), key=len)
+        G = G.subgraph(giant).copy()
     nodes = list(G.nodes)
 
-    pos = nx.spring_layout(G, k=4.6 / np.sqrt(max(len(nodes), 1)), seed=5,
-                           weight="weight", iterations=1200)
+    pos = nx.spring_layout(G, k=3.4 / np.sqrt(max(len(nodes), 1)), seed=5,
+                           weight="weight", iterations=1500)
 
     # size by frequency but cap so the largest hub does not dominate
     capped = {j: min(counts[j], int(0.35 * len(rows))) for j in nodes}
@@ -256,9 +276,10 @@ def fig_concept_network(rows, outdir):
                 fontsize=6.0, color="black", zorder=5,
                 linespacing=0.9)
     handles = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=col,
-                          markersize=8, label=cls) for cls, col in CLASS_COLORS.items()]
+                          markersize=8, label=CLASS_SHORT[cls])
+               for cls, col in CLASS_COLORS.items()]
     ax.legend(handles=handles, frameon=False, fontsize=8, loc="lower center",
-              ncol=3, bbox_to_anchor=(0.5, -0.04))
+              ncol=4, bbox_to_anchor=(0.5, -0.04))
     ax.margins(0.12)
     ax.axis("off")
     fig.tight_layout(pad=0.2)

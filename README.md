@@ -25,18 +25,19 @@ OpenAlex API ──▶ harvest ──▶ de-duplicate ──▶ embed (Sentence-
                                                      │
    seed corpus (263 expert-curated papers) ─────────┤
                                                      ▼
-                                         classify into taxonomy
+                       classify (nearest-centroid, trained on
+                        the survey's own section labels)
                                                      ▼
                             ┌──────── two calibrated screening gates ────────┐
                             │ (a) topical relevance margin                    │
-                            │     = sim(best on-topic anchor) − sim(off-topic)│
+                            │     = sim(class centroid) − sim(off-topic)      │
                             │ (b) seed similarity                             │
                             │     = mean cosine to k nearest seed papers      │
                             │ thresholds calibrated from the seed itself      │
                             │ (leave-one-out percentiles)                     │
                             └─────────────────────────────────────────────────┘
                                                      ▼
-                       rank + cap per class ──▶ human review of flagged items
+            rank by relevance+recency, soft per-class ceiling ──▶ human review
                                                      ▼
                     discovered.csv · candidates_scored.csv · BIBLIOGRAPHY.md
 ```
@@ -47,30 +48,38 @@ scope* and avoid flooding the bibliography, a candidate must be (a) topically on
 the edge-case theme and (b) at least as close to the existing corpus as a
 *median paper the authors already cite*. Both thresholds are derived from the
 seed corpus by leave-one-out, so the screening is principled and reproducible
-rather than hand-picked. The curated set is then ranked and capped per class;
-the full scored list is preserved in `candidates_scored.csv` for transparency.
+rather than hand-picked. The curated set is then ranked by a blended
+relevance+recency score under a **soft per-class ceiling** (no class exceeds 60%
+of the picks); the full scored list is preserved in `candidates_scored.csv`.
 
-In the most recent run: **2,836** records harvested → **2,580** after
-de-duplication → **581** above the relevance floor → **122** curated additions
-(top-60 per class, ranked by a blended relevance + recency score), merged with
-the **263**-paper seed into a **385**-study living bibliography (~1.5× the
-survey corpus, dominated by 2024–2026 work). The discovered set is intentionally
-broader and more recent than the survey itself, which is the point of a *living*
-companion.
+In the most recent run: **2,836** records harvested → **69** preprint-mill
+sources dropped → **2,533** after de-duplication → **578** above the relevance
+floor → **120** curated additions (soft per-class ceiling, ranked by a blended
+relevance+recency score), merged with the **263**-paper seed into a **383**-study
+living bibliography (~1.5× the survey corpus, dominated by 2024–2026 work). The
+discovered mix (Trajectory 72 / Perception 36 / Knowledge 12) reflects the real
+recent literature. The discovered set is intentionally broader and more recent
+than the survey itself, which is the point of a *living* companion.
 
 ---
 
-## Taxonomy
+## Categories & how they are assigned
 
-| Class | Subsections |
+| Category | Meaning |
 |---|---|
-| **Perception-related** | Reconstructive & Generative · Probability & Confidence Scores · Feature & Activation Extraction · Foundation Model & Adaptive Learning · Other |
-| **Trajectory-related** | Surrogate Safety Metrics · Probability Estimation · Machine Learning · Challenging the System Under Test · Novel Scenario Generation |
-| **Knowledge-driven** | Influencing Factors · Formalisation of Description · Qualification & Classification |
+| **Perception-related** | detecting/generating edge cases in sensing & perception (anomaly, OOD, segmentation, …) |
+| **Trajectory-related** | safety-critical scenarios, scenario generation, surrogate safety, falsification, … |
+| **Knowledge-driven** | expert/ontology/ODD-driven scenario definition & criticality reasoning |
+| **Assessment** | metrics & evaluation of detection methods (ground-truth seed category only) |
 
-Anchor descriptions for each class/subsection are taken verbatim from the
-survey (see [`src/classify.py`](src/classify.py)), so the data-driven assignment
-*recovers the manual taxonomy* rather than inventing a new one.
+Categories are **not** guessed from hand-written descriptions. Each *seed* paper
+is labelled by the **section of the survey that reviews it** (ground truth; see
+[`analysis/section_labels.py`](../analysis/section_labels.py)). The class
+prototypes (centroids) of those ground-truth papers then classify newly
+*discovered* papers ([`src/classify.py`](src/classify.py)). On the seed this
+classifier scores **75% leave-one-out accuracy** (Perception 90% / Trajectory
+61% / Knowledge 70%). *Assessment* overlaps the methods it evaluates, so it is
+kept as a ground-truth-only seed category and is not an automated target.
 
 ---
 
@@ -79,21 +88,21 @@ survey (see [`src/classify.py`](src/classify.py)), so the data-driven assignment
 ```
 living-survey/
 ├── README.md
-├── BIBLIOGRAPHY.md            # auto-generated, browsable, grouped by taxonomy
+├── BIBLIOGRAPHY.md            # auto-generated, browsable, grouped by category
 ├── config.yaml               # search terms + tuning parameters (mirrors src defaults)
 ├── requirements.txt
 ├── src/
 │   ├── harvest.py            # OpenAlex retrieval (Boolean phrase queries)
-│   ├── classify.py          # shared taxonomy + Sentence-BERT classifier
+│   ├── classify.py          # centroid classifier (trained on the seed's section labels)
 │   ├── classify_llm.py      # OPTIONAL modular-LLM second opinion (needs API key)
-│   ├── discover.py          # end-to-end: harvest → screen → classify → write
+│   ├── discover.py          # end-to-end: harvest → screen → classify → select → write
 │   ├── figures.py           # scientometric figures (trend, heatmap, network)
 │   └── report.py            # build BIBLIOGRAPHY.md from the data
 ├── data/
-│   ├── seed_corpus.csv       # 263 expert-curated papers (frozen)
-│   ├── discovered.csv        # curated new papers (top-N per class)
+│   ├── seed_corpus.csv       # 263 seed papers + ground-truth category & label_source
+│   ├── discovered.csv        # curated new papers (soft per-class ceiling)
 │   ├── candidates_scored.csv # full scored candidate list (transparency)
-│   └── bibliography.csv      # merged seed + discovered, classified
+│   └── bibliography.csv      # merged seed + discovered, categorised
 ├── figures/                  # scientometric figures for the LIVING corpus (+ PRISMA)
 └── .github/workflows/update.yml   # monthly auto-refresh
 ```
@@ -124,7 +133,8 @@ Strictness is controlled in `src/discover.py` (mirrored in `config.yaml`):
 |---|---|---|
 | `SEED_SIM_PCTL` | seed-similarity floor (percentile of seed LOO distribution) | 50 |
 | `MARGIN_PCTL` | topical-relevance floor | 25 |
-| `PER_CLASS_CAP` | curated picks per class | 60 |
+| `TOTAL_TARGET` | size of the curated living addition | 120 |
+| `CEILING_FRAC` | soft ceiling: max share of picks from one class | 0.60 |
 | `RECENCY_WEIGHT` | recency bonus per year added to the rank score | 0.05 |
 | `FROM_YEAR` | earliest publication year to consider | 2023 |
 
