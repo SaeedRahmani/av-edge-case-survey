@@ -44,9 +44,13 @@ HARVEST_CACHE = os.path.join(DATA, "_harvest_cache.json")
 # echoing the whole (very large) field.
 SEED_SIM_PCTL = 50      # gate (b): >= median seed centrality
 MARGIN_PCTL = 25        # gate (a): >= 25th-pctl seed relevance margin
-PER_CLASS_CAP = 15      # curated picks per top-level class (ranked by seed sim)
+PER_CLASS_CAP = 60      # curated picks per top-level class
+RECENCY_WEIGHT = 0.05   # bonus per year after FROM_YEAR added to the rank score
 KNN = 5                 # neighbours used for seed-similarity
 FROM_YEAR = 2023        # surface genuinely new work
+# The living bibliography is meant to be ~1.4-1.5x the survey corpus and to
+# emphasise the MOST RECENT literature, so within each class we rank candidates
+# recency-first (then by relevance) before applying the per-class cap.
 
 
 def _norm_title(t: str) -> str:
@@ -174,7 +178,17 @@ def main():
                 cand_seed_sim[i] < s_thresh + 0.03 or cand_margin[i] < m_thresh + 0.02
             )
             passing.append(rr)
-    passing.sort(key=lambda r: -r["seed_sim"])
+    def _year(r):
+        try:
+            return int(str(r.get("year"))[:4])
+        except (ValueError, TypeError):
+            return 0
+
+    # Blend relevance with a recency bonus so the living bibliography emphasises
+    # the most recent literature WITHOUT sacrificing relevance.
+    for r in passing:
+        r["rank_score"] = r["seed_sim"] + RECENCY_WEIGHT * max(0, _year(r) - FROM_YEAR)
+    passing.sort(key=lambda r: -r["rank_score"])
 
     out_cols = ["openalex_id", "doi", "title", "year", "venue", "cited_by",
                 "class", "subsection", "class_score", "margin", "seed_sim",

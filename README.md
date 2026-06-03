@@ -51,9 +51,12 @@ rather than hand-picked. The curated set is then ranked and capped per class;
 the full scored list is preserved in `candidates_scored.csv` for transparency.
 
 In the most recent run: **2,836** records harvested → **2,580** after
-de-duplication → **581** above the relevance floor → **32** curated additions
-(top-15 per class), merged with the **263**-paper seed into a **295**-study
-living bibliography.
+de-duplication → **581** above the relevance floor → **122** curated additions
+(top-60 per class, ranked by a blended relevance + recency score), merged with
+the **263**-paper seed into a **385**-study living bibliography (~1.5× the
+survey corpus, dominated by 2024–2026 work). The discovered set is intentionally
+broader and more recent than the survey itself, which is the point of a *living*
+companion.
 
 ---
 
@@ -84,12 +87,14 @@ living-survey/
 │   ├── classify.py          # shared taxonomy + Sentence-BERT classifier
 │   ├── classify_llm.py      # OPTIONAL modular-LLM second opinion (needs API key)
 │   ├── discover.py          # end-to-end: harvest → screen → classify → write
+│   ├── figures.py           # scientometric figures (trend, heatmap, network)
 │   └── report.py            # build BIBLIOGRAPHY.md from the data
 ├── data/
 │   ├── seed_corpus.csv       # 263 expert-curated papers (frozen)
 │   ├── discovered.csv        # curated new papers (top-N per class)
 │   ├── candidates_scored.csv # full scored candidate list (transparency)
 │   └── bibliography.csv      # merged seed + discovered, classified
+├── figures/                  # scientometric figures for the LIVING corpus (+ PRISMA)
 └── .github/workflows/update.yml   # monthly auto-refresh
 ```
 
@@ -119,7 +124,8 @@ Strictness is controlled in `src/discover.py` (mirrored in `config.yaml`):
 |---|---|---|
 | `SEED_SIM_PCTL` | seed-similarity floor (percentile of seed LOO distribution) | 50 |
 | `MARGIN_PCTL` | topical-relevance floor | 25 |
-| `PER_CLASS_CAP` | curated picks per class | 15 |
+| `PER_CLASS_CAP` | curated picks per class | 60 |
+| `RECENCY_WEIGHT` | recency bonus per year added to the rank score | 0.05 |
 | `FROM_YEAR` | earliest publication year to consider | 2023 |
 
 Raise the percentiles / lower the cap for a stricter, smaller set.
@@ -135,6 +141,25 @@ python src/classify_llm.py
 ```
 
 ---
+
+## Figures
+
+`src/figures.py` regenerates the scientometric figures for **the living corpus**
+(seed + discovered) into [`figures/`](figures): a publication-per-year trend (which
+rises through 2024–2026 as new work is discovered), a BERTopic topic × class
+heatmap, a curated keyword co-occurrence network, and the PRISMA flow. These are
+the repository's *own* figures and are deliberately distinct from the figures in
+the paper, which characterise the smaller, fixed survey corpus:
+
+```bash
+python src/figures.py --input data/bibliography.csv --outdir figures --trend-max 2026
+```
+
+| Publication trend | Topics × taxonomy | Concept co-occurrence |
+|:--:|:--:|:--:|
+| ![trend](figures/scientometric_trend.png) | ![heatmap](figures/topic_class_heatmap.png) | ![network](figures/keyword_network.png) |
+
+![PRISMA](figures/prisma_flow.png)
 
 ## Reproducibility & archival
 
