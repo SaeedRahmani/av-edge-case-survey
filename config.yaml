@@ -1,0 +1,37 @@
+# Configuration for the living literature discovery pipeline.
+# Edit and re-run `python src/discover.py` to change scope or strictness.
+
+# --- retrieval ---
+from_year: 2023            # surface genuinely new work since the survey
+mailto: saeedrmd@gmail.com  # OpenAlex polite pool
+
+# Boolean search decomposed into AV-term x edge-case-term phrase queries.
+av_terms:
+  - autonomous driving
+  - automated driving
+  - autonomous vehicle
+  - automated vehicle
+  - self-driving
+edge_terms:
+  - edge case
+  - corner case
+  - anomaly detection
+  - out-of-distribution
+  - novelty detection
+  - rare event
+  - safety-critical scenario
+  - critical scenario
+  - scenario generation
+  - near-miss
+  - surrogate safety
+
+# --- screening / tuning (calibrated from the seed corpus) ---
+embedding_model: sentence-transformers/all-MiniLM-L6-v2
+knn: 5                     # neighbours for seed-similarity gate
+seed_sim_percentile: 50   # gate (b): >= median seed centrality
+margin_percentile: 25     # gate (a): >= 25th-pctl seed relevance margin
+per_class_cap: 15         # curated picks per top-level class
+
+# --- optional LLM second opinion (modular LLM) ---
+use_llm: false            # requires ANTHROPIC_API_KEY
+llm_model: claude-opus-4-8

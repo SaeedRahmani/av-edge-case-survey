@@ -1,0 +1,10 @@
+# Core pipeline (no API key required)
+numpy>=1.26
+scikit-learn>=1.4
+sentence-transformers>=2.7
+# Topic modelling for the trend/keyword figures (optional but recommended)
+bertopic>=0.16
+matplotlib>=3.8
+networkx>=3.2
+# Optional: higher-accuracy LLM second-opinion classifier (needs ANTHROPIC_API_KEY)
+# anthropic>=0.40
