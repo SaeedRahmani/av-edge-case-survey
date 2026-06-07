@@ -1,8 +1,10 @@
 # Configuration for the living literature discovery pipeline.
 # Edit and re-run `python src/discover.py` to change scope or strictness.
+# All screening/tuning parameters below are read by src/discover.py at startup.
 
 # --- retrieval ---
-from_year: 2023            # surface genuinely new work since the survey
+from_year: 2023             # surface genuinely new work since the survey
+max_publication_date: "2025-12-31"  # omit unfinished current-year records from this release/trend
 mailto: saeedrmd@gmail.com  # OpenAlex polite pool
 
 # Boolean search decomposed into AV-term x edge-case-term phrase queries.
@@ -30,11 +32,16 @@ embedding_model: sentence-transformers/all-MiniLM-L6-v2
 knn: 5                     # neighbours for seed-similarity gate
 seed_sim_percentile: 50   # gate (b): >= median seed centrality
 margin_percentile: 25     # gate (a): >= 25th-pctl seed relevance margin
-total_target: 120         # size of the curated living addition (~1.5x seed)
+total_target: 120         # size of the curated living addition
 ceiling_frac: 0.60        # soft ceiling: max share of picks from one class
-recency_weight: 0.05      # recency bonus per year in the rank score
+year_ceiling_frac: 0.40   # optional guard: max share of picks from one publication year
+recency_weight: 0.01      # modest recency nudge; bounded by relevance gates and year ceiling
 # Non-peer-reviewed preprint mills excluded (arXiv kept); see discover.PREPRINT_MILL
+exclude_source_patterns:
+  - theses.fr
+exclude_title_patterns:
+  - "$WIP$"
 
 # --- optional LLM second opinion (modular LLM) ---
 use_llm: false            # requires ANTHROPIC_API_KEY
-llm_model: claude-opus-4-8
+llm_model: claude-opus-4-7

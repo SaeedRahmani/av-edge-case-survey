@@ -27,7 +27,8 @@ def link(r):
 
 
 def main():
-    rows = list(csv.DictReader(open(os.path.join(DATA, "bibliography.csv"), encoding="utf-8")))
+    with open(os.path.join(DATA, "bibliography.csv"), encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
     by = defaultdict(list)
     for r in rows:
         by[r.get("category") or "Background"].append(r)

@@ -14,17 +14,17 @@
 ]
 % ----- main column -----
 \node[box] (db)  {Records identified via automated\\ database search (OpenAlex API,\\ Boolean phrase queries)\\ \textbf{$n = 2{,}836$}};
-\node[box, right=64mm of db] (seed) {Records from expert curation\\ (original survey seed corpus)\\ \textbf{$n = 263$}};
+\node[box, right=64mm of db] (seed) {Records from expert curation\\ (263 source records; 244\\ canonical seed works)\\ \textbf{$n = 244$}};
 
-\node[box, below=10mm of db] (dedup) {Records after duplicate, near-duplicate,\\ seed-overlap, and preprint-mill removal\\ \textbf{$n = 2{,}533$ new}};
-\node[box, below=8mm of dedup] (screen) {Records screened by automated\\ relevance gate (embedding-based\\ topical + seed-similarity criteria)\\ \textbf{$n = 2{,}533$}};
-\node[box, below=8mm of screen] (elig) {Records assessed for eligibility\\ (centroid classification, ranking,\\ and human cross-review)\\ \textbf{$n = 578$}};
-\node[box, below=8mm of elig, fill=green!6] (incl) {Studies in living bibliography\\ \textbf{$n = 383$}\ \ ($263$ seed $+\,120$ newly added)};
+\node[box, below=10mm of db] (dedup) {Records after duplicate, near-duplicate,\\ seed-overlap, current-year, and\\ preprint-mill removal\\ \textbf{$n = 2{,}379$ new}};
+\node[box, below=8mm of dedup] (screen) {Records screened by automated\\ relevance gate (embedding-based\\ topical + seed-similarity criteria)\\ \textbf{$n = 2{,}379$}};
+\node[box, below=8mm of screen] (elig) {Records assessed for eligibility\\ (centroid classification, ranking,\\ and human-review flagging)\\ \textbf{$n = 657$}};
+\node[box, below=8mm of elig, fill=green!6] (incl) {Studies in living bibliography\\ \textbf{$n = 364$}\ \ ($244$ seed $+\,120$ newly added)};
 
 % ----- exclusion boxes -----
-\node[excl, right=12mm of dedup]  (e1) {Removed: duplicate /\\ near-duplicate, already in\\ seed, or preprint-mill\\ \textbf{$n = 303$}};
-\node[excl, right=12mm of screen] (e2) {Excluded: below relevance\\ floor (off-topic or low\\ seed similarity)\\ \textbf{$n = 1{,}955$}};
-\node[excl, right=12mm of elig]   (e3) {Not selected in curated\\ ranking (beyond the soft\\ per-class ceiling; archived\\ in full scored list)\\ \textbf{$n = 458$}};
+\node[excl, right=12mm of dedup]  (e1) {Removed: duplicate /\\ near-duplicate, already in\\ seed, current-year, preprint-mill,\\ or configured source exclusion\\ \textbf{$n = 457$}};
+\node[excl, right=12mm of screen] (e2) {Excluded: below relevance\\ floor (off-topic or low\\ seed similarity)\\ \textbf{$n = 1{,}722$}};
+\node[excl, right=12mm of elig]   (e3) {Not selected in curated\\ ranking (beyond the soft\\ per-class ceiling; archived\\ in full scored list)\\ \textbf{$n = 537$}};
 
 % ----- arrows -----
 \draw[arr] (db) -- (dedup);

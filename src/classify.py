@@ -10,7 +10,8 @@ seed papers whose category is known from the section of the survey that cites
 them (see analysis/section_labels.py). A paper is assigned to the nearest class
 centroid; a small off-topic anchor set flags non-AV papers.
 
-Classes (4): Perception-related, Trajectory-related, Knowledge-driven, Assessment.
+Automated classes (3): Perception-related, Trajectory-related, Knowledge-driven.
+Assessment is retained as a ground-truth-only figure category.
 
 The labelled seed lives in data/seed_corpus.csv (column `category`, with
 `label_source == groundtruth` for the section-cited papers used to build the
@@ -21,10 +22,26 @@ from __future__ import annotations
 import csv
 import functools
 import os
+import re
 
 import numpy as np
 
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
+def _load_config() -> dict:
+    try:
+        import yaml
+
+        config_path = os.path.join(os.path.dirname(HERE), "config.yaml")
+        with open(config_path, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except (FileNotFoundError, ImportError):
+        return {}
+
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+_CFG = _load_config()
+
+MODEL_NAME = _CFG.get("embedding_model", "sentence-transformers/all-MiniLM-L6-v2")
 # The automated classifier targets the three DETECTION classes only. "Assessment"
 # is a cross-cutting category that overlaps the methods it evaluates, so as a
 # prediction target it steals papers and is unreliable (43% LOO recall). It is
@@ -33,7 +50,33 @@ MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 CLASSES = ["Perception-related", "Trajectory-related", "Knowledge-driven"]
 FIGURE_CATEGORIES = CLASSES + ["Assessment"]
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+# Taxonomy with subtopics consumed by classify_llm.py for optional LLM prompting.
+TAXONOMY = {
+    "Perception-related": {
+        "anomaly detection": "detecting anomalies in sensor data",
+        "out-of-distribution detection": "identifying inputs outside training distribution",
+        "novelty detection": "detecting novel or unseen scenarios in perception",
+        "uncertainty estimation": "quantifying model prediction uncertainty",
+        "object detection": "detecting objects under safety-critical conditions",
+        "semantic segmentation": "scene understanding under edge conditions",
+    },
+    "Trajectory-related": {
+        "scenario generation": "generating safety-critical test scenarios",
+        "safety-critical scenario": "scenarios with high collision or failure risk",
+        "surrogate safety measure": "metrics such as TTC and PRIT for risk assessment",
+        "trajectory prediction": "predicting vehicle or pedestrian trajectories",
+        "reinforcement learning": "RL-based testing or adversarial scenario discovery",
+        "falsification": "finding inputs that falsify system specifications",
+        "simulation-based testing": "testing AV systems in simulation environments",
+    },
+    "Knowledge-driven": {
+        "ontology-based approach": "expert knowledge encoded in ontologies",
+        "knowledge graph": "structured knowledge representations for AV safety",
+        "operational design domain": "ODD definition and boundary detection",
+        "rule-based criticality": "rule or logic-based edge case detection",
+    },
+}
+
 SEED_CSV = os.path.join(os.path.dirname(HERE), "data", "seed_corpus.csv")
 
 # If a paper is closest to one of these it is likely NOT an AV edge-case paper.
@@ -66,13 +109,49 @@ def _doc(r):
     return (r.get("title", "") + ". " + (r.get("abstract", "") or "")).strip()
 
 
+def _norm_title(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (title or "").lower())
+
+
+def _canonical_id(row: dict) -> str:
+    title_key = _norm_title(row.get("title", ""))
+    if title_key:
+        return "title:" + title_key
+    doi = (row.get("doi") or "").strip().lower().replace("https://doi.org/", "")
+    if doi:
+        return "doi:" + doi
+    openalex_id = (row.get("openalex_id") or "").strip().lower()
+    if openalex_id:
+        return "oa:" + openalex_id
+    return ""
+
+
+def _is_figure_row(row: dict) -> bool:
+    return str(row.get("fig_include", "1")).strip() in ("1", "1.0", "True", "true")
+
+
+def _training_rows(rows: list[dict]) -> list[dict]:
+    train = [row for row in rows
+             if row.get("label_source") == "groundtruth"
+             and row.get("category") in CLASSES
+             and _is_figure_row(row)]
+    seen: set[str] = set()
+    unique = []
+    for row in train:
+        key = _canonical_id(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(row)
+    return unique
+
+
 @functools.lru_cache(maxsize=1)
 def _centroids_and_offtopic(seed_csv=SEED_CSV):
     """Build per-class centroids from the ground-truth-labelled seed papers."""
     with open(seed_csv, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    train = [r for r in rows
-             if r.get("label_source") == "groundtruth" and r.get("category") in CLASSES]
+    train = _training_rows(rows)
     if not train:
         raise RuntimeError("no ground-truth training rows found in seed_corpus.csv")
     vecs = embed([_doc(r) for r in train])
@@ -94,7 +173,7 @@ def classify(records, relevance_threshold=0.0):
     """
     cmat, off = _centroids_and_offtopic()
     vecs = embed([_doc(r) for r in records])
-    cls_sims = vecs @ cmat.T          # N x 4
+    cls_sims = vecs @ cmat.T          # N x 3
     off_sims = vecs @ off.T           # N x K
     best_cls = cls_sims.argmax(axis=1)
     best_cls_sim = cls_sims.max(axis=1)
@@ -118,8 +197,7 @@ def loo_report(seed_csv=SEED_CSV):
     from collections import Counter
 
     with open(seed_csv, encoding="utf-8") as f:
-        rows = [r for r in csv.DictReader(f)
-                if r.get("label_source") == "groundtruth" and r.get("category") in CLASSES]
+        rows = _training_rows(list(csv.DictReader(f)))
     vecs = embed([_doc(r) for r in rows])
     y = [r["category"] for r in rows]
     ok = 0

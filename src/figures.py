@@ -10,7 +10,7 @@ corpus) and the living repository (full bibliography). Run it once per corpus:
 
   # living-repo figures (seed + discovered)
   python figures.py --input ../data/bibliography.csv \
-                    --outdir ../figures --trend-max 2026
+                    --outdir ../figures --trend-max 2025
 
 Outputs (PDF + PNG):
   scientometric_trend.*   publications per year, stacked by class
@@ -125,21 +125,23 @@ def _save(fig, outdir, name):
 # --------------------------------------------------------------------------- #
 def fig_trend(rows, outdir, ymin, ymax):
     years = list(range(ymin, ymax + 1))
-    counts = {c: [0] * len(years) for c in CLASSES}
+    counts = {category: [0] * len(years) for category in CLASSES}
     for r in rows:
         try:
             y = int(str(r["year"])[:4])
         except (ValueError, TypeError):
             continue
-        if ymin <= y <= ymax and r["category"] in counts:
+        if ymin <= y <= ymax and r["category"] in CLASSES:
             counts[r["category"]][y - ymin] += 1
 
     fig, ax = plt.subplots(figsize=(3.5, 2.4))
     bottom = np.zeros(len(years))
-    for c in CLASSES:
-        vals = np.array(counts[c])
-        ax.bar(years, vals, bottom=bottom, label=CLASS_SHORT[c], color=CLASS_COLORS[c],
-               width=0.82, edgecolor="white", linewidth=0.3)
+    for category in CLASSES:
+        vals = np.array(counts[category])
+        if not vals.any():
+            continue
+        ax.bar(years, vals, bottom=bottom, label=CLASS_SHORT[category],
+               color=CLASS_COLORS[category], width=0.82, edgecolor="white", linewidth=0.3)
         bottom += vals
     ax.set_xlabel("Publication year")
     ax.set_ylabel("Number of papers")
@@ -291,7 +293,7 @@ def main():
     ap.add_argument("--input", required=True)
     ap.add_argument("--outdir", required=True)
     ap.add_argument("--trend-min", type=int, default=2015)
-    ap.add_argument("--trend-max", type=int, default=2026)
+    ap.add_argument("--trend-max", type=int, default=2025)
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)

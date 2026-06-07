@@ -12,14 +12,33 @@ search string is decomposed into AV-term x edge-case-term phrase queries.
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.parse
 import urllib.request
+from datetime import date
 
-MAILTO = "saeedrmd@gmail.com"
+import yaml
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+CONFIG_YAML = os.path.join(os.path.dirname(HERE), "config.yaml")
+
+
+def _load_config() -> dict:
+    try:
+        with open(CONFIG_YAML, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return {}
+
+
+_CFG = _load_config()
+
+MAILTO = _CFG.get("mailto", "saeedrmd@gmail.com")
+MAX_PUBLICATION_DATE = _CFG.get("max_publication_date") or date.today().isoformat()
 
 # Edge-case / corner-case concept phrases (the survey's second AND-block).
-EDGE_TERMS = [
+EDGE_TERMS = _CFG.get("edge_terms") or [
     "edge case",
     "corner case",
     "anomaly detection",
@@ -34,7 +53,7 @@ EDGE_TERMS = [
 ]
 
 # Automated-driving context phrases (the survey's first AND-block).
-AV_TERMS = [
+AV_TERMS = _CFG.get("av_terms") or [
     "autonomous driving",
     "automated driving",
     "autonomous vehicle",
@@ -43,10 +62,10 @@ AV_TERMS = [
 ]
 
 
-def _get(url: str) -> dict:
+def _get(url: str, mailto: str = MAILTO) -> dict:
     sep = "&" if "?" in url else "?"
-    url = f"{url}{sep}mailto={MAILTO}"
-    req = urllib.request.Request(url, headers={"User-Agent": f"living-survey ({MAILTO})"})
+    url = f"{url}{sep}mailto={mailto}"
+    req = urllib.request.Request(url, headers={"User-Agent": f"living-survey ({mailto})"})
     with urllib.request.urlopen(req, timeout=40) as r:
         return json.load(r)
 
@@ -62,9 +81,11 @@ def reconstruct_abstract(inv_index) -> str:
     return " ".join(w for _, w in pos)
 
 
-def harvest(from_year: int = 2023, per_query: int = 60, max_pages: int = 2) -> list[dict]:
-    """Return de-duplicated candidate works published since `from_year`."""
+def harvest(from_year: int = 2023, until_date: str | None = None,
+            per_query: int = 60, max_pages: int = 2) -> list[dict]:
+    """Return de-duplicated candidate works published in the configured date window."""
     seen: dict[str, dict] = {}
+    until_date = until_date or MAX_PUBLICATION_DATE
     n_queries = 0
     for av in AV_TERMS:
         for edge in EDGE_TERMS:
@@ -74,10 +95,13 @@ def harvest(from_year: int = 2023, per_query: int = 60, max_pages: int = 2) -> l
             cursor = "*"
             fetched = 0
             for _ in range(max_pages):
+                filters = [f"from_publication_date:{from_year}-01-01", "type:article|preprint"]
+                if until_date:
+                    filters.append(f"to_publication_date:{until_date}")
                 url = (
                     "https://api.openalex.org/works"
                     f"?search={q}"
-                    f"&filter=from_publication_date:{from_year}-01-01,type:article|preprint"
+                    f"&filter={','.join(filters)}"
                     f"&per-page=50&cursor={cursor}"
                 )
                 try:
@@ -94,12 +118,14 @@ def harvest(from_year: int = 2023, per_query: int = 60, max_pages: int = 2) -> l
                         "openalex_id": oid,
                         "title": (w.get("title") or "").strip(),
                         "year": w.get("publication_year", ""),
+                        "publication_date": w.get("publication_date", ""),
                         "doi": (w.get("doi") or "").replace("https://doi.org/", ""),
                         "venue": (
                             (w.get("primary_location") or {}).get("source") or {}
                         ).get("display_name", "")
                         if w.get("primary_location")
                         else "",
+                        "work_type": w.get("type", ""),
                         "cited_by": w.get("cited_by_count", 0),
                         "abstract": reconstruct_abstract(w.get("abstract_inverted_index")),
                         "matched_query": phrase,
@@ -110,8 +136,8 @@ def harvest(from_year: int = 2023, per_query: int = 60, max_pages: int = 2) -> l
                     break
                 time.sleep(0.1)
             time.sleep(0.08)
-    print(f"  harvested {len(seen)} unique candidates from {n_queries} phrase queries "
-          f"(>= {from_year})")
+        print(f"  harvested {len(seen)} unique candidates from {n_queries} phrase queries "
+                    f"({from_year}-01-01 to {until_date})")
     return list(seen.values())
 
 
