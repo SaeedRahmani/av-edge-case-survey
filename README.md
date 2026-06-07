@@ -42,6 +42,8 @@ OpenAlex API ──▶ harvest ──▶ de-duplicate ──▶ embed (Sentence-
                     discovered.csv · candidates_scored.csv · BIBLIOGRAPHY.md
 ```
 
+![Living-survey methodology flowchart](figures/methodology_flow_living.png)
+
 **Why two gates and calibration?** Naively searching OpenAlex returns thousands
 of loosely-related AV papers. To stay *consistent with the survey's actual
 scope* and avoid flooding the bibliography, a candidate must be (a) topically on
@@ -169,7 +171,9 @@ python src/classify_llm.py
 `src/figures.py` regenerates the scientometric figures for **the living corpus**
 (seed + discovered) into [`figures/`](figures): a publication-per-year trend, a
 BERTopic topic × class heatmap, a curated keyword co-occurrence network, and the
-PRISMA flow. The bibliography may include 2026 records, but all scientometric
+PRISMA flow. A separate static methodology flowchart in
+[`figures/methodology_flow_living.tex`](figures/methodology_flow_living.tex)
+summarizes the monthly update workflow. The bibliography may include 2026 records, but all scientometric
 panels generated with `--trend-max 2025` exclude records after 2025. These are
 the repository's *own* figures and are deliberately distinct from the figures in
 the paper, which characterise the smaller, fixed survey corpus:
