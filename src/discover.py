@@ -6,14 +6,14 @@ End-to-end living literature discovery:
   1. harvest recent candidates from OpenAlex (cached);
   2. embed candidates + the expert-curated seed corpus;
   3. de-duplicate candidates against the seed and drop preprint-mill sources;
-    4. classify each candidate into the survey's 3 automated categories with the centroid
+  4. classify each candidate into the survey's 3 automated categories with the centroid
      classifier (classify.py), whose centroids are the survey's own
      ground-truth-labelled papers;
   5. apply two calibrated gates (relevance margin + seed similarity) as a
      RELEVANCE FLOOR, both calibrated from the seed corpus by leave-one-out;
-    6. select the living set by a relevance-led score with a modest recency weight and a SOFT
-     PER-CLASS CEILING (no class exceeds `CEILING_FRAC` of the picks), so the
-     mix reflects the real field without one class flooding it;
+  6. preserve the existing living additions and append at most `MONTHLY_ADD_LIMIT`
+      new papers per run, ranked by a relevance-led score with a modest recency
+      weight and guarded by SOFT per-class/per-year ceilings;
   7. write discovered.csv, candidates_scored.csv and the merged bibliography.csv
      (seed rows carry their GROUND-TRUTH category; discovered rows the predicted
      one). Only ground-truth seed + discovered rows are marked fig_include=1.
@@ -42,6 +42,7 @@ SEED_CSV = os.path.join(DATA, "seed_corpus.csv")
 PAPER_REFERENCE_EXCLUSIONS = os.path.join(DATA, "paper_reference_exclusions.csv")
 HARVEST_CACHE = os.path.join(DATA, "_harvest_cache.json")
 CONFIG_YAML = os.path.join(os.path.dirname(HERE), "config.yaml")
+DISCOVERED_CSV = os.path.join(DATA, "discovered.csv")
 
 
 def _load_config() -> dict:
@@ -54,9 +55,17 @@ def _load_config() -> dict:
 
 _CFG = _load_config()
 
+
+def _config_int(name: str, default: int) -> int:
+    value = _CFG.get(name, default)
+    if value is None:
+        return default
+    return int(value)
+
 SEED_SIM_PCTL  = _CFG.get("seed_sim_percentile", 50)
 MARGIN_PCTL    = _CFG.get("margin_percentile", 25)
-TOTAL_TARGET   = _CFG.get("total_target", 120)
+BOOTSTRAP_TARGET = _config_int("bootstrap_target", _CFG.get("total_target", 120))
+MONTHLY_ADD_LIMIT = _config_int("monthly_add_limit", 5)
 CEILING_FRAC   = _CFG.get("ceiling_frac", 0.60)
 YEAR_CEILING_FRAC = _CFG.get("year_ceiling_frac", 0.0)
 RECENCY_WEIGHT = _CFG.get("recency_weight", 0.0)
@@ -147,6 +156,12 @@ def _as_float(row: dict, key: str) -> float:
         return 0.0
 
 
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y"}
+
+
 def _publication_date_ok(row: dict) -> bool:
     publication_date = str(row.get("publication_date") or "").strip()
     max_date = str(MAX_PUBLICATION_DATE)
@@ -185,6 +200,52 @@ def load_paper_reference_exclusions():
         return []
     with open(PAPER_REFERENCE_EXCLUSIONS, encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def prepare_discovery_row(row: dict) -> dict:
+    prepared = dict(row)
+    prepared["canonical_id"] = _canonical_id(prepared)
+    prepared["source"] = "auto-discovered"
+    prepared.setdefault("label_source", "predicted")
+    prepared.setdefault("fig_include", 1)
+    prepared["needs_review"] = _as_bool(prepared.get("needs_review")) or bool(
+        prepared.get("review_reason")
+    )
+    prepared.setdefault("review_reason", "")
+    for col in DISC_COLS + BIB_COLS:
+        prepared.setdefault(col, "")
+    return prepared
+
+
+def load_existing_discoveries():
+    if not os.path.exists(DISCOVERED_CSV):
+        return []
+    with open(DISCOVERED_CSV, encoding="utf-8") as f:
+        rows = [prepare_discovery_row(row) for row in csv.DictReader(f)]
+    kept = []
+    seen = set()
+    for row in rows:
+        identities = _identity_keys(row)
+        if identities and identities & seen:
+            continue
+        kept.append(row)
+        seen.update(identities)
+    return kept
+
+
+def identity_index(rows):
+    index = {}
+    for row in rows:
+        for key in _identity_keys(row):
+            index.setdefault(key, row)
+    return index
+
+
+def first_identity_match(row, index):
+    for key in _identity_keys(row):
+        if key in index:
+            return index[key]
+    return None
 
 
 def _cache_signature() -> dict:
@@ -292,6 +353,7 @@ def main():
     args = ap.parse_args()
 
     seed = load_seed()
+    previous_discoveries = load_existing_discoveries()
     paper_exclusions = load_paper_reference_exclusions()
     paper_owned_identity_keys = set()
     for row in seed + paper_exclusions:
@@ -372,24 +434,48 @@ def main():
         w = csv.DictWriter(f, fieldnames=DISC_COLS, extrasaction="ignore")
         w.writeheader(); w.writerows(passing)
 
-    # soft per-class ceiling selection (natural proportions, no class dominates)
-    ceiling = int(CEILING_FRAC * TOTAL_TARGET)
-    year_ceiling = int(YEAR_CEILING_FRAC * TOTAL_TARGET) if YEAR_CEILING_FRAC else 0
-    per = Counter()
-    per_year = Counter()
-    keep = []
+    passing_by_identity = identity_index(passing)
+    existing = []
+    for row in previous_discoveries:
+        refreshed = first_identity_match(row, passing_by_identity)
+        existing.append(prepare_discovery_row(refreshed or row))
+
+    if existing:
+        selection_target = len(existing) + max(0, MONTHLY_ADD_LIMIT)
+        mode = f"monthly append (+{max(0, MONTHLY_ADD_LIMIT)} max)"
+    else:
+        selection_target = max(0, BOOTSTRAP_TARGET)
+        mode = "bootstrap"
+
+    # Soft global ceilings: existing selections are retained, but new additions
+    # cannot make one class/year dominate the growing living bibliography.
+    ceiling = int(CEILING_FRAC * selection_target)
+    year_ceiling = int(YEAR_CEILING_FRAC * selection_target) if YEAR_CEILING_FRAC else 0
+    per = Counter(r.get("category") for r in existing)
+    per_year = Counter(str(r.get("year", ""))[:4] for r in existing)
+    selected_identities = set()
+    for row in existing:
+        selected_identities.update(_identity_keys(row))
+    keep = list(existing)
+    newly_added = []
     for r in passing:
-        if len(keep) >= TOTAL_TARGET:
+        if len(keep) >= selection_target:
             break
+        identities = _identity_keys(r)
+        if identities and identities & selected_identities:
+            continue
         if per[r["category"]] >= ceiling:
             continue
         row_year = str(r.get("year", ""))[:4]
         if year_ceiling and per_year[row_year] >= year_ceiling:
             continue
-        keep.append(r)
+        prepared = prepare_discovery_row(r)
+        keep.append(prepared)
+        newly_added.append(prepared)
         per[r["category"]] += 1
         per_year[row_year] += 1
-    keep.sort(key=lambda r: (r["category"], -r["rank_score"]))
+        selected_identities.update(identities)
+    keep.sort(key=lambda r: (r["category"], -_as_float(r, "rank_score")))
 
     # optional LLM second-opinion pass on borderline papers (use_llm in config.yaml)
     if USE_LLM:
@@ -414,7 +500,7 @@ def main():
                 print(f"  LLM review complete ({len(flagged)} papers)")
 
     disc_cols = DISC_COLS + (LLM_COLS if (USE_LLM and os.getenv("ANTHROPIC_API_KEY")) else [])
-    with open(os.path.join(DATA, "discovered.csv"), "w", newline="", encoding="utf-8") as f:
+    with open(DISCOVERED_CSV, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=disc_cols, extrasaction="ignore")
         w.writeheader(); w.writerows(keep)
 
@@ -435,8 +521,9 @@ def main():
         w = csv.DictWriter(f, fieldnames=BIB_COLS, extrasaction="ignore")
         w.writeheader(); w.writerows(merged)
 
-        print(f"\n{len(passing)} above floor; CURATED {len(keep)} "
-            f"(ceiling {ceiling}/class, {year_ceiling or 'off'}/year):")
+    print(f"\n{len(passing)} above floor; CURATED {len(keep)} "
+          f"({mode}; retained {len(existing)}, added {len(newly_added)}; "
+          f"ceiling {ceiling}/class, {year_ceiling or 'off'}/year):")
     for c, n in Counter(r["category"] for r in keep).most_common():
         print(f"  {c:20s} {n}")
     print(f"  by year: {dict(sorted(Counter(str(r['year'])[:4] for r in keep).items()))}")

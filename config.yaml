@@ -4,7 +4,7 @@
 
 # --- retrieval ---
 from_year: 2023             # surface genuinely new work since the survey
-max_publication_date: "2026-06-07"  # living bibliography snapshot; figures still cap trends at 2025
+max_publication_date: null  # null = use the workflow/run date; figures still cap trends separately
 mailto: saeedrmd@gmail.com  # OpenAlex polite pool
 
 # Boolean search decomposed into AV-term x edge-case-term phrase queries.
@@ -32,7 +32,8 @@ embedding_model: sentence-transformers/all-MiniLM-L6-v2
 knn: 5                     # neighbours for seed-similarity gate
 seed_sim_percentile: 50   # gate (b): >= median seed centrality
 margin_percentile: 25     # gate (a): >= 25th-pctl seed relevance margin
-total_target: 120         # size of the curated living addition
+bootstrap_target: 120     # first-run curated addition size when discovered.csv is empty
+monthly_add_limit: 5      # later runs append at most this many new papers
 ceiling_frac: 0.60        # soft ceiling: max share of picks from one class
 year_ceiling_frac: 0.40   # optional guard: max share of picks from one publication year
 recency_weight: 0.01      # modest recency nudge; bounded by relevance gates and year ceiling

@@ -37,7 +37,7 @@ OpenAlex API ──▶ harvest ──▶ de-duplicate ──▶ embed (Sentence-
                             │ (leave-one-out percentiles)                     │
                             └─────────────────────────────────────────────────┘
                                                      ▼
-            rank by relevance-led score, soft class/year ceilings ──▶ review flags
+            rank by relevance-led score, append <=5/month under class/year ceilings
                                                      ▼
                     discovered.csv · candidates_scored.csv · BIBLIOGRAPHY.md
 ```
@@ -48,22 +48,25 @@ scope* and avoid flooding the bibliography, a candidate must be (a) topically on
 the edge-case theme and (b) at least as close to the existing corpus as a
 *median paper the authors already cite*. Both thresholds are derived from the
 seed corpus by leave-one-out, so the screening is principled and reproducible
-rather than hand-picked. The curated set is then ranked by a relevance-led score
-with a modest recency nudge (`recency_weight: 0.01` by default) under a **soft
-per-class ceiling** (no class exceeds 60% of the picks) and an optional per-year
-ceiling; the full scored list is preserved in `candidates_scored.csv`.
+rather than hand-picked. The candidate list is then ranked by a relevance-led
+score with a modest recency nudge (`recency_weight: 0.01` by default). On the
+first run, the pipeline bootstraps the curated living addition to 120 papers.
+After that, each monthly refresh **retains the existing selected papers** and
+appends at most **five** new papers, still under soft per-class and per-year
+ceilings; the full scored list is preserved in `candidates_scored.csv`.
 
 In the most recent run (OpenAlex snapshot through **2026-06-07**): **2,830**
 records harvested -> **68** preprint-mill sources, **1** configured source/title
 exclusion, and **36** paper-owned seed/reference overlaps dropped; **206**
 duplicate or near-duplicate records were also removed -> **2,519** after
-de-duplication -> **706** above the relevance floor -> **120** curated additions,
-merged with the **244**-work canonical seed into a **364**-study living
+de-duplication -> **706** above the relevance floor -> **120** bootstrap curated
+additions, merged with the **244**-work canonical seed into a **364**-study living
 bibliography (~1.5x the survey corpus). The discovered mix is Trajectory 72 /
 Perception 35 / Knowledge 13, with year counts 2023:20 / 2024:32 / 2025:47 /
-2026:21. The discovered set is intentionally broader and more recent than the
-survey itself, which is the point of a *living* companion. Scientometric figures
-use a separate cutoff and omit 2026, ending at 2025.
+2026:21. Future monthly runs add at most five more papers that pass the same
+gates and ranking rules. The discovered set is intentionally broader and more
+recent than the survey itself, which is the point of a *living* companion.
+Scientometric figures use a separate cutoff and omit 2026, ending at 2025.
 
 ---
 
@@ -105,7 +108,7 @@ living-survey/
 │   └── report.py            # build BIBLIOGRAPHY.md from the data
 ├── data/
 │   ├── seed_corpus.csv       # 244 canonical seed works + category & label_source
-│   ├── discovered.csv        # curated new papers (soft per-class ceiling)
+│   ├── discovered.csv        # curated living additions, retained and extended monthly
 │   ├── candidates_scored.csv # full scored candidate list (transparency)
 │   └── bibliography.csv      # merged seed + discovered, categorised
 ├── figures/                  # scientometric figures for the LIVING corpus (+ PRISMA)
@@ -138,14 +141,16 @@ Strictness is controlled in `src/discover.py` (mirrored in `config.yaml`):
 |---|---|---|
 | `SEED_SIM_PCTL` | seed-similarity floor (percentile of seed LOO distribution) | 50 |
 | `MARGIN_PCTL` | topical-relevance floor | 25 |
-| `TOTAL_TARGET` | size of the curated living addition | 120 |
+| `BOOTSTRAP_TARGET` | first-run size of the curated living addition when `discovered.csv` is empty | 120 |
+| `MONTHLY_ADD_LIMIT` | maximum number of newly selected papers appended by each later run | 5 |
 | `CEILING_FRAC` | soft ceiling: max share of picks from one class | 0.60 |
 | `YEAR_CEILING_FRAC` | optional max share of picks from one publication year | 0.40 |
 | `RECENCY_WEIGHT` | optional recency bonus per year added to the rank score | 0.01 |
-| `MAX_PUBLICATION_DATE` | latest publication date included in the bibliography snapshot | 2026-06-07 |
+| `MAX_PUBLICATION_DATE` | latest publication date included in the bibliography snapshot; `null` means the run date | null |
 | `FROM_YEAR` | earliest publication year to consider | 2023 |
 
-Raise the percentiles / lower the cap for a stricter, smaller set.
+Raise the percentiles for a stricter set, or lower `MONTHLY_ADD_LIMIT` for
+slower growth.
 
 ### Optional: modular-LLM second opinion
 
@@ -181,9 +186,10 @@ python src/figures.py --input data/bibliography.csv --outdir figures --trend-min
 
 ## Reproducibility & archival
 
-The pipeline is deterministic given a fixed OpenAlex snapshot date. For a
-citable, frozen version (as referenced in the paper), archive a release on
-[Zenodo](https://zenodo.org) to obtain a DOI:
+The living workflow uses the run date by default, so it can keep growing. For a
+citable, frozen version (as referenced in the paper), set
+`max_publication_date` to a fixed date, run the pipeline, and archive a release
+on [Zenodo](https://zenodo.org) to obtain a DOI:
 
 1. Tag a release on GitHub (`v1.0.0`).
 2. Enable the repository in Zenodo; a DOI is minted automatically.

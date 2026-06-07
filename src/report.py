@@ -7,6 +7,7 @@ the survey's categories. Run after discover.py.
 import csv
 import os
 from collections import Counter, defaultdict
+from datetime import date
 
 import yaml
 
@@ -43,7 +44,7 @@ def main():
             config = yaml.safe_load(f) or {}
     except FileNotFoundError:
         config = {}
-    snapshot_date = config.get("max_publication_date", "the configured snapshot date")
+    snapshot_date = config.get("max_publication_date") or date.today().isoformat()
 
     lines = [
         "# Living Bibliography — Edge-Case Detection & Assessment for Automated Driving",

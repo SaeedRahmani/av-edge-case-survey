@@ -1,6 +1,6 @@
 name: Living literature update
 
-# Re-runs discovery monthly and commits the refreshed bibliography.
+# Re-runs discovery monthly, appends up to five new papers, and commits outputs.
 on:
   schedule:
     - cron: "0 6 1 * *"   # 06:00 UTC on the 1st of each month
@@ -29,11 +29,12 @@ jobs:
           cd src
           python discover.py --refresh
           python report.py
+          python figures.py --input ../data/bibliography.csv --outdir ../figures --trend-min 2015 --trend-max 2025
 
       - name: Commit refreshed bibliography
         run: |
           git config user.name  "living-survey-bot"
           git config user.email "actions@github.com"
-          git add data/ BIBLIOGRAPHY.md
+          git add data/ figures/ BIBLIOGRAPHY.md
           git commit -m "chore: monthly living-literature update [skip ci]" || echo "no changes"
           git push
