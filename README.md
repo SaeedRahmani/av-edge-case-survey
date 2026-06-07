@@ -1,6 +1,7 @@
-# AV Edge-Case Survey
+# Edge-Case Detection for Automated Driving: A Survey (Living Version)
 
 A living companion repository for the survey *Edge Cases in Automated Driving: A Survey of Detection and Assessment Methods*.
+
 
 This repository keeps the survey bibliography reproducible and current. It starts from the expert-curated papers used in the manuscript, searches OpenAlex for recent automated-driving edge-case literature, screens candidates with calibrated embedding-based relevance gates, assigns them to the survey taxonomy, and appends at most five new papers during each scheduled monthly update.
 
