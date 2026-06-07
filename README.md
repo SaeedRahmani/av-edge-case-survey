@@ -156,13 +156,25 @@ slower growth.
 
 ### Optional: modular-LLM second opinion
 
-The default classifier already runs without any key (Sentence-BERT). For a
-higher-accuracy pass over the borderline (`needs_review`) papers:
+The default classifier runs without any key (Sentence-BERT + calibrated gates +
+nearest-centroid taxonomy). For a higher-accuracy audit pass over borderline
+(`needs_review`) papers, enable the optional modular LLM layer:
 
 ```bash
+pip install anthropic
 export ANTHROPIC_API_KEY=sk-...
-python src/classify_llm.py
+python src/discover.py --no-append
 ```
+
+Set `use_llm: true` in [`config.yaml`](config.yaml) first. The LLM receives only
+bibliographic metadata, title, abstract, and the embedding-based screening
+evidence. It returns structured JSON fields (`llm_relevant`, `llm_class`,
+`llm_subtopic`, `llm_confidence`, `llm_reason`, plus model/prompt metadata).
+High-confidence agreement is recorded as `llm_agrees`; high-confidence
+non-relevance or class disagreement is retained as a human-review flag rather
+than automatically deleting a paper. Use `--no-append` when you only want to
+refresh scores or LLM audit fields for the current bibliography; omit it for the
+scheduled monthly update that may append up to five new papers.
 
 ---
 

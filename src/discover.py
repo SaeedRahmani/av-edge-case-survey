@@ -74,10 +74,12 @@ FROM_YEAR      = _CFG.get("from_year", 2023)
 MAX_PUBLICATION_DATE = _CFG.get("max_publication_date") or date.today().isoformat()
 USE_LLM        = _CFG.get("use_llm", False)
 LLM_MODEL      = _CFG.get("llm_model", "claude-opus-4-7")
+LLM_REVIEW_CONFIDENCE = float(_CFG.get("llm_review_confidence", 0.75))
 EXCLUDE_SOURCE_PATTERNS = tuple(p.lower() for p in _CFG.get("exclude_source_patterns", []))
 EXCLUDE_TITLE_PATTERNS = tuple(p.lower() for p in _CFG.get("exclude_title_patterns", []))
 
-LLM_COLS = ["llm_relevant", "llm_class", "llm_subtopic", "llm_confidence", "llm_reason"]
+LLM_COLS = ["llm_relevant", "llm_class", "llm_subtopic", "llm_confidence", "llm_reason",
+            "llm_decision", "llm_model", "llm_prompt_version", "llm_reviewed_at"]
 
 # Dedicated preprint mills (no peer review) -> excluded. arXiv is kept.
 PREPRINT_MILL = ("10.5281/zenodo", "10.20944/preprints", "10.33774/coe",
@@ -308,14 +310,15 @@ def knn_sim(query_vecs, ref_vecs, k, exclude_self=False):
     return np.sort(sims, axis=1)[:, -k:].mean(axis=1)
 
 
-DISC_COLS = ["canonical_id", "openalex_id", "doi", "title", "year", "publication_date",
-             "venue", "work_type", "cited_by", "category", "class_score", "margin",
-             "seed_sim", "rank_score", "needs_review", "review_reason", "source",
-             "matched_query"]
+DISC_BASE_COLS = ["canonical_id", "openalex_id", "doi", "title", "year", "publication_date",
+                  "venue", "work_type", "cited_by", "category", "class_score", "margin",
+                  "seed_sim", "rank_score", "needs_review", "review_reason", "source",
+                  "matched_query"]
+DISC_COLS = DISC_BASE_COLS + LLM_COLS
 BIB_COLS = ["canonical_id", "openalex_id", "doi", "title", "year", "publication_date",
             "venue", "work_type", "cited_by", "category", "label_source", "fig_include",
             "class_score", "margin", "seed_sim", "needs_review", "review_reason",
-            "source", "abstract"]
+            "source", "abstract"] + LLM_COLS
 
 
 def review_reason(row: dict, seed_threshold: float, margin_threshold: float) -> str:
@@ -346,10 +349,79 @@ def rank_key(row: dict):
     )
 
 
+def append_review_reason(row: dict, reason: str):
+    if not reason:
+        return
+    current = str(row.get("review_reason") or "").strip()
+    reasons = [part.strip() for part in current.split(";") if part.strip()]
+    if reason not in reasons:
+        reasons.append(reason)
+    row["review_reason"] = "; ".join(reasons)
+    row["needs_review"] = True
+
+
+def _llm_relevant_value(value):
+    if isinstance(value, bool):
+        return value
+    lowered = str(value).strip().lower()
+    if lowered in {"true", "1", "yes"}:
+        return True
+    if lowered in {"false", "0", "no"}:
+        return False
+    return None
+
+
+def apply_llm_review(row: dict, llm_row: dict):
+    original_category = row.get("category") or ""
+    for col in LLM_COLS:
+        row[col] = llm_row.get(col, "")
+    confidence = _as_float(row, "llm_confidence")
+    relevant = _llm_relevant_value(row.get("llm_relevant"))
+    llm_class = row.get("llm_class") or ""
+
+    if relevant is False and confidence >= LLM_REVIEW_CONFIDENCE:
+        row["llm_decision"] = "llm_flags_not_relevant"
+        append_review_reason(row, f"LLM flags not relevant ({confidence:.2f})")
+        return
+    if relevant is True and llm_class == original_category and confidence >= LLM_REVIEW_CONFIDENCE:
+        row["llm_decision"] = "llm_agrees"
+        return
+    if relevant is True and llm_class in C.CLASSES and llm_class != original_category:
+        row["llm_decision"] = "llm_category_disagreement"
+        append_review_reason(row, f"LLM suggests {llm_class} instead of {original_category}")
+        return
+    row["llm_decision"] = "llm_needs_human_review"
+    append_review_reason(row, "LLM returned low-confidence or ambiguous decision")
+
+
+def run_llm_second_opinion(rows: list[dict]) -> int:
+    if not USE_LLM:
+        return 0
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        print("Warning: use_llm=true in config but ANTHROPIC_API_KEY is not set; skipping LLM pass.")
+        return 0
+    flagged = [row for row in rows if _as_bool(row.get("needs_review")) or row.get("review_reason")]
+    if not flagged:
+        return 0
+    import classify_llm as LLM
+
+    print(f"Running LLM second-opinion on {len(flagged)} borderline papers ...")
+    reviewed_rows = LLM.classify_llm(flagged, model=LLM_MODEL)
+    reviewed_index = identity_index(reviewed_rows)
+    for row in rows:
+        llm_row = first_identity_match(row, reviewed_index)
+        if llm_row is not None:
+            apply_llm_review(row, llm_row)
+    print(f"  LLM review complete ({len(reviewed_rows)} papers)")
+    return len(reviewed_rows)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tune", action="store_true")
     ap.add_argument("--refresh", action="store_true")
+    ap.add_argument("--no-append", action="store_true",
+                    help="refresh existing selections and optional LLM audit fields without adding new papers")
     args = ap.parse_args()
 
     seed = load_seed()
@@ -440,7 +512,10 @@ def main():
         refreshed = first_identity_match(row, passing_by_identity)
         existing.append(prepare_discovery_row(refreshed or row))
 
-    if existing:
+    if args.no_append:
+        selection_target = len(existing)
+        mode = "refresh/no append"
+    elif existing:
         selection_target = len(existing) + max(0, MONTHLY_ADD_LIMIT)
         mode = f"monthly append (+{max(0, MONTHLY_ADD_LIMIT)} max)"
     else:
@@ -477,31 +552,12 @@ def main():
         selected_identities.update(identities)
     keep.sort(key=lambda r: (r["category"], -_as_float(r, "rank_score")))
 
-    # optional LLM second-opinion pass on borderline papers (use_llm in config.yaml)
-    if USE_LLM:
-        if not os.getenv("ANTHROPIC_API_KEY"):
-            print("Warning: use_llm=true in config but ANTHROPIC_API_KEY is not set; skipping LLM pass.")
-        else:
-            import classify_llm as LLM
-            flagged = [r for r in keep if r.get("needs_review")]
-            if flagged:
-                print(f"Running LLM second-opinion on {len(flagged)} borderline papers ...")
-                reviewed = {r["openalex_id"]: r
-                            for r in LLM.classify_llm(flagged, model=LLM_MODEL)}
-                for r in keep:
-                    if r["openalex_id"] in reviewed:
-                        lr = reviewed[r["openalex_id"]]
-                        r["llm_relevant"]   = lr.get("llm_relevant")
-                        r["llm_class"]      = lr.get("llm_class")
-                        r["llm_confidence"] = lr.get("llm_confidence")
-                        r["llm_reason"]     = lr.get("llm_reason")
-                        if lr.get("llm_class") in C.CLASSES:
-                            r["category"] = lr["llm_class"]
-                print(f"  LLM review complete ({len(flagged)} papers)")
+    # Optional LLM second-opinion pass on borderline papers. The LLM never
+    # deletes a record automatically; it writes audit fields and review flags.
+    run_llm_second_opinion(keep)
 
-    disc_cols = DISC_COLS + (LLM_COLS if (USE_LLM and os.getenv("ANTHROPIC_API_KEY")) else [])
     with open(DISCOVERED_CSV, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=disc_cols, extrasaction="ignore")
+        w = csv.DictWriter(f, fieldnames=DISC_COLS, extrasaction="ignore")
         w.writeheader(); w.writerows(keep)
 
     # merged bibliography: seed (ground-truth category) + discovered (predicted)

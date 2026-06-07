@@ -52,7 +52,7 @@ def main():
         f"**{len(rows)} studies** ({n_seed} expert-curated seed + {n_new} "
         "auto-discovered). 🆕 = auto-discovered; ⚠️ = flagged for human review; "
         "category from the survey section (seed) or the centroid classifier "
-        "(discovered).",
+        "(discovered), with optional LLM audit fields for borderline records.",
         "",
         f"Snapshot includes records through `{snapshot_date}`. Scientometric figures "
         "use an explicit year cutoff and currently omit records after 2025.",

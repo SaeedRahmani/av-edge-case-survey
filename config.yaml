@@ -44,5 +44,6 @@ exclude_title_patterns:
   - "$WIP$"
 
 # --- optional LLM second opinion (modular LLM) ---
-use_llm: false            # requires ANTHROPIC_API_KEY
+use_llm: false            # requires ANTHROPIC_API_KEY; reviews borderline records only
 llm_model: claude-opus-4-7
+llm_review_confidence: 0.75 # high-confidence LLM agreement/disagreement threshold

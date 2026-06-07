@@ -21,7 +21,7 @@
 \node[outbox, below=of append] (publish) {Published outputs\\ candidates, discovered set,\\ bibliography and figures};
 
 \node[box, right=18mm of embed] (seed) {Frozen seed corpus\\ paper references labelled by\\ uncommented manuscript citations};
-\node[box, right=18mm of append] (review) {Human review point\\ borderline flags and optional\\ modular LLM second opinion};
+\node[box, right=18mm of append] (review) {LLM-assisted review point\\ borderline records, JSON rationale,\\ disagreement flags for humans};
 
 \draw[arr] (schedule) -- (harvest);
 \draw[arr] (harvest) -- (dedup);
