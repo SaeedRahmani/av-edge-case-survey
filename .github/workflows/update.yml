@@ -35,6 +35,6 @@ jobs:
         run: |
           git config user.name  "av-edge-case-survey-bot"
           git config user.email "actions@github.com"
-          git add data/ figures/ BIBLIOGRAPHY.md
+          git add data/ figures/ BIBLIOGRAPHY.md README.md
           git commit -m "chore: monthly living-literature update [skip ci]" || echo "no changes"
           git push

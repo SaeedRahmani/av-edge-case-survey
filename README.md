@@ -1,227 +1,408 @@
 # AV Edge-Case Survey
 
-A **living, automatically updated companion repository** to the survey
-*"Edge Cases in Automated Driving: A Survey of Detection and Assessment Methods"*.
+A living companion repository for the survey *Edge Cases in Automated Driving: A Survey of Detection and Assessment Methods*.
 
-Public repository: [SaeedRahmani/av-edge-case-survey](https://github.com/SaeedRahmani/av-edge-case-survey).
+This repository keeps the survey bibliography reproducible and current. It starts from the expert-curated papers used in the manuscript, searches OpenAlex for recent automated-driving edge-case literature, screens candidates with calibrated embedding-based relevance gates, assigns them to the survey taxonomy, and appends at most five new papers during each scheduled monthly update.
 
-This repository operationalises the survey's methodology as a reproducible,
-semi-automated pipeline. It (1) carries the **expert-curated reference corpus**
-of the paper as a frozen *seed*, (2) **discovers new papers** from
-[OpenAlex](https://openalex.org) on a schedule, (3) **classifies** every paper
-into the survey's top-level taxonomy (*perception-related* /
-*trajectory-related* / *knowledge-driven*), and (4) keeps a tightly-screened,
-human-reviewable [`BIBLIOGRAPHY.md`](BIBLIOGRAPHY.md) up to date.
+The automation is meant to support transparent literature discovery, not to replace expert judgement. Borderline records remain flagged for human review, and the full scored candidate table is kept for auditing.
 
-The goal is **objectivity, scalability, and replicability**: the literature base
-of the survey can be re-derived and extended by anyone, with the expert
-synthesis preserved as the seed and the automation acting as a transparent
-augmentation — *not* a replacement.
+For the detailed workflow, figures, tuning parameters, and reproducibility notes, see [METHODOLOGY.md](METHODOLOGY.md). The standalone generated bibliography is also kept in [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md).
 
----
+## Repository Contents
 
-## How it works
+- [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md): generated bibliography grouped by category.
+- [METHODOLOGY.md](METHODOLOGY.md): detailed pipeline description and figures.
+- [data/](data): seed corpus, discovered papers, scored candidates, and merged bibliography CSV.
+- [src/](src): harvesting, screening, classification, reporting, and figure-generation code.
+- [figures/](figures): generated scientometric and PRISMA-style outputs.
 
-```
-OpenAlex API ──▶ harvest ──▶ de-duplicate ──▶ embed (Sentence-BERT)
-                                                     │
-    seed corpus (263 source records; 244 canonical works) ──┤
-                                                     ▼
-                       classify (nearest-centroid, trained on
-                        the survey's own section labels)
-                                                     ▼
-                            ┌──────── two calibrated screening gates ────────┐
-                            │ (a) topical relevance margin                    │
-                            │     = sim(class centroid) − sim(off-topic)      │
-                            │ (b) seed similarity                             │
-                            │     = mean cosine to k nearest seed papers      │
-                            │ thresholds calibrated from the seed itself      │
-                            │ (leave-one-out percentiles)                     │
-                            └─────────────────────────────────────────────────┘
-                                                     ▼
-            rank by relevance-led score, append <=5/month under class/year ceilings
-                                                     ▼
-                    discovered.csv · candidates_scored.csv · BIBLIOGRAPHY.md
-```
+## Current Paper List
 
-![AV edge-case survey methodology flowchart](figures/methodology_flow_living.png)
+<!-- BEGIN GENERATED BIBLIOGRAPHY -->
 
-**Why two gates and calibration?** Naively searching OpenAlex returns thousands
-of loosely-related AV papers. To stay *consistent with the survey's actual
-scope* and avoid flooding the bibliography, a candidate must be (a) topically on
-the edge-case theme and (b) at least as close to the existing corpus as a
-*median paper the authors already cite*. Both thresholds are derived from the
-seed corpus by leave-one-out, so the screening is principled and reproducible
-rather than hand-picked. The candidate list is then ranked by a relevance-led
-score with a modest recency nudge (`recency_weight: 0.01` by default). On the
-first run, the pipeline bootstraps the curated living addition to 120 papers.
-After that, each monthly refresh **retains the existing selected papers** and
-appends at most **five** new papers, still under soft per-class and per-year
-ceilings; the full scored list is preserved in `candidates_scored.csv`.
+**364 studies** (244 expert-curated seed + 120 auto-discovered). NEW = auto-discovered; REVIEW = flagged for human review; category from the survey section (seed) or the centroid classifier (discovered), with optional LLM audit fields for borderline records.
 
-In the most recent run (OpenAlex snapshot through **2026-06-07**): **2,830**
-records harvested -> **68** preprint-mill sources, **1** configured source/title
-exclusion, and **36** paper-owned seed/reference overlaps dropped; **206**
-duplicate or near-duplicate records were also removed -> **2,519** after
-de-duplication -> **706** above the relevance floor -> **120** bootstrap curated
-additions, merged with the **244**-work canonical seed into a **364**-study living
-bibliography (~1.5x the survey corpus). The discovered mix is Trajectory 72 /
-Perception 35 / Knowledge 13, with year counts 2023:20 / 2024:32 / 2025:47 /
-2026:21. Future monthly runs add at most five more papers that pass the same
-gates and ranking rules. The discovered set is intentionally broader and more
-recent than the survey itself, which is the point of a *living* companion.
-Scientometric figures use a separate cutoff and omit 2026, ending at 2025.
+Snapshot includes records through `2026-06-07`. Scientometric figures use an explicit year cutoff and currently omit records after 2025.
 
----
+> Generated by `src/report.py`. Do not edit by hand - edit the pipeline.
 
-## Categories & how they are assigned
+## Perception-related  (135)
 
-| Category | Meaning |
-|---|---|
-| **Perception-related** | detecting/generating edge cases in sensing & perception (anomaly, OOD, segmentation, …) |
-| **Trajectory-related** | safety-critical scenarios, scenario generation, surrogate safety, falsification, … |
-| **Knowledge-driven** | expert/ontology/ODD-driven scenario definition & criticality reasoning |
-| **Assessment** | metrics & evaluation of detection methods (ground-truth seed category only) |
+- (2026) [AD4AD: Benchmarking Visual Anomaly Detection Models for Safer Autonomous Driving](https://doi.org/10.48550/arxiv.2604.15291) NEW REVIEW
+- (2026) [Corner Case Detection Using Multi-Modal Information in Autonomous Driving](https://doi.org/10.1109/icara69401.2026.11480286) NEW
+- (2026) [Real-World On-Vehicle Evaluation of Embedding-Based Anomaly Detection](https://doi.org/10.48550/arxiv.2605.19744) NEW REVIEW
+- (2026) [Hybrid Vision–Language and YOLO Framework for Detecting Rare Road Objects in Autonomous Vehicles](https://doi.org/10.1109/iciccs67901.2026.11502996) NEW
+- (2025) [Evaluation of Large Language Models for Anomaly Detection in Autonomous Vehicles](https://openalex.org/W7147344069)
+- (2025) [Few-Shot Learning With Manifold-Enhanced LLM for Handling Anomalous Perception Inputs in Autonomous Driving](https://openalex.org/W4411232161)
+- (2025) [Insight: Enhancing autonomous driving safety through vision-language models on context-aware hazard detection and edge case evaluation](https://openalex.org/W4407123402)
+- (2025) [Towards a multi-agent vision-language system for zero-shot novel hazardous object detection for autonomous driving safety](https://openalex.org/W4414432334)
+- (2025) [Scene-Level Triggers Using Foundation Model Embeddings](https://doi.org/10.1109/iavvc61942.2025.11219448) NEW
+- (2025) [A Probabilistic Adversarial Autoencoder for Novelty Detection: Leveraging Lightweight Design and Reconstruction Loss](https://doi.org/10.1109/access.2025.3577080) NEW
+- (2025) [Runtime Safety Monitoring of Deep Neural Networks for Perception: A Survey](https://doi.org/10.48550/arxiv.2511.05982) NEW
+- (2025) [Generating Out-of-Distribution Scenarios Using Language Models](https://doi.org/10.1109/icra55743.2025.11127950) NEW
+- (2025) [Real-Time Quality Monitoring and Anomaly Detection for Vision Sensors in Connected and Autonomous Vehicles](https://doi.org/10.1109/access.2025.3536524) NEW
+- (2025) [Improving out-of-distribution detection by enforcing confidence margin](https://doi.org/10.1007/s10115-025-02380-y) NEW
+- (2025) [Track Any Anomalous Object: A Granular Video Anomaly Detection Pipeline](https://doi.org/10.1109/cvpr52734.2025.00812) NEW
+- (2025) [Automated Evaluation of Large Vision-Language Models on Self-Driving Corner Cases](https://doi.org/10.1109/wacv61041.2025.00759) NEW
+- (2025) [Deep learning for multivariate time series anomaly detection: an evaluation of reconstruction-based methods](https://doi.org/10.1007/s10462-025-11401-9) NEW
+- (2025) [Leveraging Text-Driven Semantic Variation for Robust OOD Segmentation](https://openalex.org/W7105506172) NEW
+- (2025) [Vision-Language Models for Autonomous Driving: CLIP-Based Dynamic Scene Understanding](https://doi.org/10.3390/electronics14071282) NEW
+- (2025) [Unsupervised Anomaly Detection for Improving Adversarial Robustness of 3D Object Detection Models](https://doi.org/10.3390/electronics14020236) NEW
+- (2025) [A novel lightweight dual-stream recurrent transformer model for anomaly detection in driving dashcam videos](https://doi.org/10.1007/s00521-025-11380-6) NEW
+- (2024) [SDAC: A Multimodal Synthetic Dataset for Anomaly and Corner Case Detection in Autonomous Driving](https://openalex.org/W4393149271)
+- (2024) [Few-shot testing of autonomous vehicles with scenario similarity learning](https://openalex.org/W4403783017)
+- (2024) [Road Obstacle Detection based on Unknown Objectness Scores](https://doi.org/10.1109/icra57147.2024.10610249) NEW
+- (2024) [AnoVox: A Benchmark for Multimodal Anomaly Detection in Autonomous Driving](https://doi.org/10.48550/arxiv.2405.07865) NEW
+- (2024) [COOOL: Challenge Of Out-Of-Label A Novel Benchmark for Autonomous Driving](https://doi.org/10.48550/arxiv.2412.05462) NEW
+- (2024) [GeneralAD: Anomaly Detection Across Domains by Attending to Distorted Features](https://doi.org/10.48550/arxiv.2407.12427) NEW
+- (2024) [DivNEDS: Diverse Naturalistic Edge Driving Scene Dataset for Autonomous Vehicle Scene Understanding](https://doi.org/10.1109/access.2024.3394530) NEW
+- (2024) [UMAD: Unsupervised Mask-Level Anomaly Detection for Autonomous Driving](https://doi.org/10.48550/arxiv.2406.06370) NEW
+- (2024) [Self-Supervised Likelihood Estimation with Energy Guidance for Anomaly Segmentation in Urban Scenes](https://doi.org/10.1609/aaai.v38i19.30162) NEW
+- (2024) [Safe Driving Adversarial Trajectory Can Mislead: Toward More Stealthy Adversarial Attack Against Autonomous Driving Prediction Module](https://doi.org/10.1145/3705611) NEW
+- (2024) [Unexpected object detection based on class correlation in semantic segmentation for automatic driving scenes](https://doi.org/10.3233/jifs-237799) NEW
+- (2024) [Towards Road Anomaly Detection for Autonomous Vehicle System Using Deep Learning Technique](https://doi.org/10.1109/inspect63485.2024.10896108) NEW
+- (2024) [Quantile-Based Maximum Likelihood Training for Outlier Detection](https://doi.org/10.1609/aaai.v38i19.30159) NEW
+- (2023) [Detection of Out-of-Distribution Samples Using Binary Neuron Activation Patterns](https://doi.org/10.1109/cvpr52729.2023.00329)
+- (2023) [Feed Two Birds with One Scone: Exploiting Wild Data for Both Out-of-Distribution Generalization and Detection](https://openalex.org/W4380994347)
+- (2023) [Leveraging Visual Attention for out-of-Distribution Detection](https://openalex.org/W4390190101)
+- (2023) [Open-Set Semantic Segmentation for Point Clouds via Adversarial Prototype Framework](https://openalex.org/W4386075841)
+- (2023) [Out-of-Distribution Detection Is Not All You Need](https://doi.org/10.1609/aaai.v37i12.26732)
+- (2023) [Runtime Monitoring DNN-Based Perception](https://openalex.org/W4387225824)
+- (2023) [Runtime Monitoring for Out-of-Distribution Detection in Object Detection Neural Networks](https://doi.org/10.1007/978-3-031-27481-7_36)
+- (2023) [SAFE: Sensitivity-Aware Features for Out-of-Distribution Object Detection](https://openalex.org/W4390872222)
+- (2023) [Tackling clutter in radar data-label generation and detection using pointnet++](https://openalex.org/W4383097602)
+- (2023) [Understanding the Feature Norm for Out-of-Distribution Detection](https://openalex.org/W4390873342)
+- (2023) [Semantic anomaly detection with large language models](https://openalex.org/W4387876242)
+- (2023) [Practical autoencoder based anomaly detection by using vector reconstruction error](https://openalex.org/W4313590336)
+- (2023) [Perception Datasets for Anomaly Detection in Autonomous Driving: A Survey](https://doi.org/10.48550/arxiv.2302.02790) NEW
+- (2023) [Anomaly Pixel Detection via Dual-Branch Uncertainty Metrics](https://doi.org/10.1088/1742-6596/2560/1/012005) NEW
+- (2023) [GROOD: GRadient-Aware Out-of-Distribution Detection](https://doi.org/10.48550/arxiv.2312.14427) NEW
+- (2023) [Anomaly-Aware Semantic Segmentation via Style-Aligned OoD Augmentation](https://doi.org/10.1109/iccvw60793.2023.00439) NEW
+- (2023) [Unsupervised Road Anomaly Detection with Language Anchors](https://doi.org/10.1109/icra48891.2023.10160470) NEW
+- (2023) [Pixel-wise Gradient Uncertainty for Convolutional Neural Networks applied to Out-of-Distribution Segmentation](https://doi.org/10.48550/arxiv.2303.06920) NEW
+- (2023) [NECO: NEural Collapse Based Out-of-distribution detection](https://doi.org/10.48550/arxiv.2310.06823) NEW
+- (2022) [3DOS: Towards 3D Open Set Learning-Benchmarking and Understanding Semantic Novelty Detection on Point Clouds](https://openalex.org/W4288055667)
+- (2022) [A Unified Survey on Anomaly, Novelty, Open-Set, and Out of-Distribution Detection: Solutions and Future Challenges](https://openalex.org/W3208763156)
+- (2022) [Catching both gray and black swans: Open-set supervised anomaly detection](https://openalex.org/W4312289809)
+- (2022) [Densehybrid: Hybrid anomaly detection for dense open-set recognition](https://openalex.org/W4312601785)
+- (2022) [DICE: Leveraging Sparsification for Out-of-Distribution Detection](https://doi.org/10.1007/978-3-031-20053-3_40)
+- (2022) [Training ood detectors in their natural habitats](https://openalex.org/W4226207566)
+- (2022) Gmmseg: Gaussian mixture based generative semantic segmentation models
+- (2022) [On Why the System Makes the Corner Case: AI-based Holistic Anomaly Detection for Autonomous Driving](https://doi.org/10.1109/iv51971.2022.9827078)
+- (2022) [Out-of-Distribution Detection with Deep Nearest Neighbors](https://openalex.org/W4223977507)
+- (2022) [Provable Guarantees for Understanding Out-of-Distribution Detection](https://doi.org/10.1609/aaai.v36i7.20752)
+- (2022) [Spatio-temporal feature encoding for traffic accident detection in VANET environment](https://openalex.org/W4212876679)
+- (2022) [Spatiotemporal consistency-enhanced network for video anomaly detection](https://openalex.org/W3190308053)
+- (2022) [Towards total recall in industrial anomaly detection](https://openalex.org/W3169651898)
+- (2022) [Unknown-Aware Object Detection: Learning What You Don't Know from Videos in the Wild](https://doi.org/10.1109/cvpr52688.2022.01331)
+- (2022) [VOS: Learning What You Don't Know by Virtual Outlier Synthesis](https://openalex.org/W4221167530)
+- (2022) [Your Out-of-Distribution Detection Method is Not Robust!](https://openalex.org/W4300978711)
+- (2021) [Lancet: Labeling complex data at scale](https://doi.org/10.14778/3476249.3476269)
+- (2021) [Anomaly detection in radar data using PointNets](https://openalex.org/W3199489263)
+- (2021) [Can multi-label classification networks know what they don't know?](https://openalex.org/W3202703311)
+- (2021) [Corner Cases for Visual Perception in Automated Driving: Some Guidance on Detection Approaches](https://openalex.org/W3126968893)
+- (2021) [Dense outlier detection and open-set recognition based on training with noisy negative images](https://openalex.org/W3122923658)
+- (2021) [Gaussian-Based Runtime Detection of Out-of-distribution Inputs for Neural Networks](https://doi.org/10.1007/978-3-030-88494-9_14)
+- (2021) [Generalized Out-of-Distribution Detection: A Survey](https://openalex.org/W4399929809)
+- (2021) [Ghost target detection in 3d radar data using point cloud based deep neural network](https://openalex.org/W3158378210)
+- (2021) [Into the Unknown: Active Monitoring of Neural Networks](https://doi.org/10.1007/978-3-030-88494-9_3)
+- (2021) [Learning normal dynamics in videos with meta prototype network](https://openalex.org/W3176309086)
+- (2021) [Mood: Multi-level out-of-distribution detection](https://openalex.org/W3159616808)
+- (2021) [No True State-of-the-Art? OOD Detection Methods are Inconsistent across Datasets](https://openalex.org/W3199830576)
+- (2021) [Out-of-distribution detection for automotive perception](https://openalex.org/W3094983298)
+- (2021) [Out-of-Distribution Detection for Deep Neural Networks With Isolation Forest and Local Outlier Factor](https://doi.org/10.1109/access.2021.3108451)
+- (2021) [Pixel-wise anomaly detection in complex driving scenes](https://openalex.org/W3135329277)
+- (2021) [Provably-robust runtime monitoring of neuron activation patterns](https://openalex.org/W3183338929)
+- (2021) [Radar ghost target detection via multimodal transformers](https://openalex.org/W3184202105)
+- (2021) [ReAct: Out-of-distribution Detection With Rectified Activations](https://openalex.org/W3213465214)
+- (2021) [Standardized max logits: A simple yet effective approach for identifying unexpected road obstacles in urban-scene segmentation](https://openalex.org/W3183613752)
+- (2021) [Toward unsupervised 3d point cloud anomaly detection using variational autoencoder](https://openalex.org/W3194885736)
+- (2021) [Weakly-supervised video anomaly detection with robust temporal feature magnitude learning](https://openalex.org/W3136793533)
+- (2021) [The fishyscapes benchmark: Measuring blind spots in semantic segmentation](https://openalex.org/W2933610837)
+- (2020) [Detecting Adversarial Examples in Learning-Enabled Cyber-Physical Systems using Variational Autoencoder for Regression](https://doi.org/10.1109/spw50608.2020.00050)
+- (2020) [Detecting Out-of-Distribution Examples with Gram Matrices](https://openalex.org/W3034370310)
+- (2020) [Energy-based Out-of-distribution Detection](https://openalex.org/W3092527263)
+- (2020) [Identifying unknown instances for autonomous driving](https://openalex.org/W3031208025)
+- (2020) [Mit-avt clustered driving scene dataset: Evaluating perception systems in real-world naturalistic driving scenarios](https://openalex.org/W3120426221)
+- (2020) [Multi-modal anomaly detection for unstructured and uncertain environments](https://openalex.org/W3110913339)
+- (2020) [Novelty detection via blurring](https://openalex.org/W2991167084)
+- (2020) [Online Monitoring for Neural Network Based Monocular Pedestrian Pose Estimation](https://doi.org/10.1109/itsc45102.2020.9294609)
+- (2020) [Out-of-distribution detection in multi-label datasets using latent space of $\beta$-vae](https://openalex.org/W3011951316)
+- (2020) [Outside the Box: Abstraction-Based Monitoring of Neural Networks](https://doi.org/10.3233/faia200375)
+- (2020) [Real-time fusion network for RGB-D semantic segmentation incorporating unexpected obstacle detection for road-driving images](https://openalex.org/W3042173136)
+- (2020) [Self-supervised domain mismatch estimation for autonomous perception](https://openalex.org/W3035370831)
+- (2020) [Systematization of Corner Cases for Visual Perception in Automated Driving](https://doi.org/10.1109/iv47402.2020.9304789)
+- (2020) [Using machine learning to detect ghost images in automotive radar](https://openalex.org/W3040834102)
+- (2020) [nuscenes: A multimodal dataset for autonomous driving](https://openalex.org/W2925148167)
+- (2019) [A Less Biased Evaluation of Out-of-distribution Sample Detectors](https://openalex.org/W2969609970)
+- (2019) [Deep Semi-Supervised Anomaly Detection](https://openalex.org/W2948079128)
+- (2019) [Deepevolution: A search-based testing approach for deep neural networks](https://openalex.org/W2994150880)
+- (2019) [Detecting the unexpected via image resynthesis](https://openalex.org/W2936458714)
+- (2019) [Likelihood Ratios for Out-of-Distribution Detection](https://openalex.org/W2948689753)
+- (2019) [Scaling Out-of-Distribution Detection for Real-World Settings](https://doi.org/10.48550/arxiv.1911.11132)
+- (2019) [Towards corner case detection for autonomous driving](https://doi.org/10.1109/ivs.2019.8813817)
+- (2019) [Unsupervised domain adaptation to improve image segmentation quality both in the source and target domain](https://openalex.org/W2970140852)
+- (2018) [A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks](https://openalex.org/W2867167548)
+- (2018) [Deep autoencoding gaussian mixture model for unsupervised anomaly detection](https://openalex.org/W2786088545)
+- (2018) [DeepGauge: multi-granularity testing criteria for deep learning systems](https://doi.org/10.1145/3238147.3238202)
+- (2018) [Deeproad: Gan-based metamorphic testing and input validation framework for autonomous driving systems](https://openalex.org/W2888307014)
+- (2018) [Detecting ghost targets using multilayer perceptron in multiple-target tracking](https://openalex.org/W2782189190)
+- (2018) [Efficient uncertainty estimation for semantic segmentation in videos](https://openalex.org/W2884490794)
+- (2018) [Enhancing The Reliability of Out-of-distribution Image Detection in Neural Networks](https://openalex.org/W2767414122)
+- (2018) [Future frame prediction for anomaly detection–a new baseline](https://openalex.org/W2963610939)
+- (2018) [Mergenet: A deep net architecture for small obstacle discovery](https://openalex.org/W2791898919)
+- (2018) [Runtime Monitoring Neuron Activation Patterns](https://openalex.org/W2963668975)
+- (2018) [Generative neural networks for anomaly detection in crowded scenes](https://openalex.org/W2899116516)
+- (2017) [A Baseline for Detecting Misclassified and Out-of-Distribution Examples in Neural Networks](https://openalex.org/W2531327146)
+- (2016) [The cityscapes dataset for semantic urban scene understanding](https://openalex.org/W2340897893)
+- (2015) [Bayesian segnet: Model uncertainty in deep convolutional encoder-decoder architectures for scene understanding](https://openalex.org/W2103328396)
+- (2015) [Learning deep representations of appearance and motion for anomalous event detection](https://openalex.org/W2962791923)
+- (2015) [Variational autoencoder based anomaly detection using reconstruction probability](https://openalex.org/W3153872861)
+- (2014) [Microsoft coco: Common objects in context](https://openalex.org/W1861492603)
+- (2012) [Man vs. computer: Benchmarking machine learning algorithms for traffic sign recognition](https://doi.org/10.1016/j.neunet.2012.02.016)
+- (2009) [Anomaly detection: A survey](https://doi.org/10.1145/1541880.1541882)
+- (2009) [Learning multiple layers of features from tiny images](https://openalex.org/W3118608800)
+- (2009) [ROS: an open-source Robot Operating System](https://openalex.org/W2901136733)
 
-Categories are **not** guessed from hand-written descriptions. Each *seed* paper
-is labelled by the **uncommented citation in the section of the survey that
-reviews it** in the source manuscript. Those ground-truth labels are stored in
-[`data/seed_corpus.csv`](data/seed_corpus.csv). The class prototypes
-(centroids) of those ground-truth papers then classify newly
-*discovered* papers ([`src/classify.py`](src/classify.py)). On the seed this
-classifier scores **76% leave-one-out accuracy** (Perception 89% / Trajectory
-60% / Knowledge 76%). *Assessment* overlaps the methods it evaluates, so it is
-kept as a ground-truth-only seed category and is not an automated target.
+## Trajectory-related  (141)
 
----
+- (2026) [Adversarial Generation and Collaborative Evolution of Safety-Critical Scenarios for Autonomous Vehicles](https://doi.org/10.1609/aaai.v40i45.41238) NEW
+- (2026) [Robust Autonomous Driving via Vulnerability-Aware Co-Optimization Framework Against Safety-Critical Scenarios](https://doi.org/10.1109/ojits.2026.3680881) NEW
+- (2026) [Versatile Behavior Diffusion for Generalized Traffic Agent Simulation](https://doi.org/10.1109/tits.2026.3662886) NEW
+- (2026) [Safety-critical scenario generation for automated testing of autonomous driving systems](https://doi.org/10.1007/s10515-026-00631-y) NEW
+- (2026) [HSPG: An open-loop testing framework for autonomous driving based on proactive generation of hazardous scenario](https://doi.org/10.1016/j.aap.2026.108449) NEW
+- (2026) [Breaking through safety performance stagnation in autonomous vehicles with dense learning](https://doi.org/10.1038/s41467-026-69761-x) NEW
+- (2026) [SaFeR: Safety-Critical Scenario Generation for Autonomous Driving Test via Feasibility-Constrained Token Resampling](https://doi.org/10.48550/arxiv.2603.04071) NEW
+- (2026) [Any2Critical: Safety-Critical Scenario Generation from Arbitrary Real-World Driving Contexts](https://doi.org/10.1609/aaai.v40i42.40861) NEW
+- (2026) [Learning a Unified Risk Map for Autonomous Driving in Partially Observable Environments](https://doi.org/10.1109/lra.2026.3666393) NEW
+- (2026) [Optimizing Virtual Scenario Testing for Autonomous Vehicles with Large-Scale Scenario Generation](https://doi.org/10.4271/2026-01-0050) NEW
+- (2026) [Safety-Centered Scenario Generation for Autonomous Vehicles](https://doi.org/10.4271/2026-01-0529) NEW
+- (2026) [A cross-methodological review on the safety effects of partial vehicle automation](https://doi.org/10.1016/j.trip.2025.101834) NEW
+- (2026) [SG-CADVLM: A Context-Aware Decoding Powered Vision Language Model for Safety-Critical Scenario Generation](https://doi.org/10.48550/arxiv.2601.18442) NEW
+- (2026) [Driver Behavior in Mixed Traffic with Autonomous Vehicles](https://doi.org/10.3390/futuretransp6030097) NEW
+- (2026) [Generating Test Cases for Autonomous Vehicles With Controllable Levels of Difficulty](https://doi.org/10.1109/ojits.2026.3692749) NEW
+- (2025) $\$WIP$\$: From Detection to Explanation: Using $\$LLMs$\$ for Adversarial Scenario Analysis in Vehicles
+- (2025) [Diffscene: Diffusion-based safety-critical scenario generation for autonomous vehicles](https://openalex.org/W4409366385)
+- (2025) [Gaia-2: A controllable multi-view generative world model for autonomous driving](https://openalex.org/W4409046497)
+- (2025) [A Path-Driven Probabilistic Framework for Simulating Abnormal Behavior in Autonomous Driving Scenarios](https://openalex.org/W4413018694)
+- (2025) [Foundation Models in Autonomous Driving: A Survey on Scenario Generation and Scenario Analysis](https://openalex.org/W4415068890)
+- (2025) [From Real-World Traffic Data to Relevant Critical Scenarios](https://doi.org/10.1109/iavvc61942.2025.11219576) NEW
+- (2025) [Can AI Generate more Comprehensive Test Scenarios? Review on Automated Driving Systems Test Scenario Generation Methods](https://doi.org/10.48550/arxiv.2512.15422) NEW
+- (2025) [CaDRE: Controllable and Diverse Generation of Safety-Critical Driving Scenarios Using Real-World Trajectories](https://doi.org/10.1109/icra55743.2025.11127319) NEW
+- (2025) [LD-scene: LLM-guided diffusion for controllable generation of adversarial safety-critical driving scenarios](https://doi.org/10.1016/j.trc.2026.105694) NEW
+- (2025) [Controllable Latent Diffusion for Traffic Simulation](https://doi.org/10.48550/arxiv.2503.11771) NEW
+- (2025) [Safety-Critical Physically Informed Scenario Generation and Execution for Autonomous Vehicle Software Validation](https://doi.org/10.1109/iavvc61942.2025.11219468) NEW
+- (2025) [Towards Benchmarking and Assessing the Safety and Robustness of Autonomous Driving on Safety-critical Scenarios](https://doi.org/10.48550/arxiv.2503.23708) NEW
+- (2025) [From Words to Collisions: LLM-Guided Evaluation and Adversarial Generation of Safety-Critical Driving Scenarios](https://doi.org/10.48550/arxiv.2502.02145) NEW
+- (2025) [Evaluation of Different Generative Models to Support the Validation of Advanced Driver Assistance Systems](https://doi.org/10.3390/applmech6020039) NEW
+- (2025) [Autonomous Vehicle Testing Scenario Generation with Difficulty-Fidelity Balance](https://doi.org/10.1061/9780784486269.012) NEW
+- (2025) [RCG: Safety-Critical Scenario Generation for Robust Autonomous Driving via Real-World Crash Grounding](https://doi.org/10.48550/arxiv.2507.10749) NEW
+- (2025) [Controllable Collision Scenario Generation via Collision Pattern Prediction](https://doi.org/10.48550/arxiv.2510.12206) NEW
+- (2025) [HAD-Gen: Human-like and diverse driving behavior modeling for controllable scenario generation](https://doi.org/10.1016/j.aap.2025.108270) NEW
+- (2025) [2COOOL: 2nd Workshop on the Challenge of Out-of-Label Hazards in Autonomous Driving](https://doi.org/10.1109/iccvw69036.2025.00084) NEW REVIEW
+- (2025) [AuthSim: Toward Authentic and Effective Safety-Critical Scenario Generation for Autonomous Driving Tests](https://doi.org/10.1109/tits.2025.3586608) NEW
+- (2025) [Challenges and Advances in Scenario-Based Validation for Automated Driving Systems](https://doi.org/10.1109/iavvc61942.2025.11219508) NEW
+- (2025) [Safety2Drive: Safety-Critical Scenario Benchmark for the Evaluation of Autonomous Driving](https://doi.org/10.48550/arxiv.2505.13872) NEW
+- (2025) [World model-based end-to-end scene generation for accident anticipation in autonomous driving](https://doi.org/10.1038/s44172-025-00474-7) NEW
+- (2025) [Validation of a Critical Driving Scenario Identification Algorithm for Automated Driving Functions Using Real and Synthetic Object Lists](https://doi.org/10.1109/iavvc61942.2025.11219539) NEW
+- (2025) [Risk-Aware Vehicle Trajectory Prediction Under Safety-Critical Scenarios](https://doi.org/10.1109/tits.2025.3525744) NEW
+- (2025) [Strengthening AI Validation and Verification in Autonomous Vehicles: Comprehensive Analysis and Improvements to Key Standards](https://doi.org/10.1109/cai64502.2025.00289) NEW
+- (2025) [Full Coverage Testing Method for Automated Driving System in Logical Scenario Parameters Space](https://doi.org/10.3390/s25185764) NEW
+- (2025) [MJTG: A Multi-Vehicle Joint Trajectory Generator for Complex and Rare Scenarios](https://doi.org/10.1109/tvt.2025.3567636) NEW
+- (2025) [TU-DAT: A Computer Vision Dataset on Road Traffic Anomalies](https://doi.org/10.3390/s25113259) NEW
+- (2025) [High-Risk Test Scenario Generation for Autonomous Vehicles at Roundabouts Using Naturalistic Driving Data](https://doi.org/10.3390/app15084505) NEW
+- (2025) [VRU-Accident: A Vision-Language Benchmark for Video Question Answering and Dense Captioning for Accident Scene Understanding](https://doi.org/10.1109/iccvw69036.2025.00085) NEW
+- (2025) [An Evolving Scenario Generation Method based on Dual-modal Driver Model Trained by Multi-Agent Reinforcement Learning](https://doi.org/10.48550/arxiv.2508.02027) NEW
+- (2025) [Seeking to Collide: Online Safety-Critical Scenario Generation for Autonomous Driving with Retrieval Augmented Large Language Models](https://doi.org/10.1109/itsc60802.2025.11423790) NEW
+- (2025) [Foundation Models for Rapid Autonomy Validation](https://doi.org/10.1109/icra55743.2025.11127854) NEW
+- (2025) [Realistic Corner Case Generation for Autonomous Vehicles with Multimodal Large Language Model](https://doi.org/10.26599/tst.2025.9010178) NEW
+- (2024) [Safety in higher level automated vehicles: Investigating edge cases in crashes of vehicles equipped with automated driving systems](https://openalex.org/W4396718590)
+- (2024) [Attribute annotation and bias evaluation in visual datasets for autonomous driving](https://openalex.org/W4402923182)
+- (2024) [Explainable Safety Argumentation for the Deployment of Automated Vehicles](https://doi.org/10.3390/electronics13234606) NEW
+- (2024) [A Testing and Evaluation Method for the Car-Following Models of Automated Vehicles Based on Driving Simulator](https://doi.org/10.3390/systems12080298) NEW
+- (2024) [Automated Vehicles at Unsignalized Intersections: Safety and Efficiency Implications of Mixed Human and Automated Traffic](https://doi.org/10.48550/arxiv.2410.12538) NEW
+- (2024) [Generating Critical Scenarios for Testing Automated Driving Systems](https://doi.org/10.48550/arxiv.2412.02574) NEW
+- (2024) [Test Vector Development for Verification and Validation of Heavy-Duty Autonomous Vehicle Operations](https://doi.org/10.4271/2024-01-1973) NEW
+- (2024) [A Driver-Vehicle Model for ADS Scenario-Based Testing](https://doi.org/10.1109/tits.2024.3373531) NEW
+- (2024) [Integrating End-to-End and Modular Driving Approaches for Online Corner Case Detection in Autonomous Driving](https://doi.org/10.1109/smc54092.2024.10831409) NEW
+- (2024) [SafeShift: Safety-Informed Distribution Shifts for Robust Trajectory Prediction in Autonomous Driving](https://doi.org/10.1109/iv55156.2024.10588828) NEW
+- (2024) [FREA: Feasibility-Guided Generation of Safety-Critical Scenarios with Reasonable Adversariality](https://doi.org/10.48550/arxiv.2406.02983) NEW
+- (2024) [Integrated Scenario-based Analysis: A data-driven approach to support automated driving systems development and safety evaluation](https://doi.org/10.48550/arxiv.2407.19975) NEW
+- (2024) [AdvDiffuser: Generating Adversarial Safety-Critical Driving Scenarios via Guided Diffusion](https://doi.org/10.1109/iros58592.2024.10802408) NEW
+- (2024) [PAFOT: A Position-Based Approach for Finding Optimal Tests of Autonomous Vehicles](https://doi.org/10.1145/3644032.3644457) NEW
+- (2024) [Enhancing Autonomous Vehicle Training with Language Model Integration and Critical Scenario Generation](https://doi.org/10.48550/arxiv.2404.08570) NEW
+- (2024) [GenDDS: Generating Diverse Driving Video Scenarios with Prompt-to-Video Generative Model](https://doi.org/10.1109/itsc58415.2024.10920106) NEW
+- (2024) [Task-Driven Controllable Scenario Generation Framework Based on AOG](https://doi.org/10.1109/tits.2023.3347535) NEW
+- (2024) [Utilizing Genetic Algorithms for Generating Critical Scenarios for Testing Autonomous Driving Functions](https://doi.org/10.1109/aitest62860.2024.00017) NEW
+- (2024) [CornerSim: A Virtualization Framework to Generate Realistic Corner-Case Scenarios for Autonomous Driving Perception Testing](https://doi.org/10.1016/j.procs.2024.06.014) NEW
+- (2023) [A quantitative method to determine what collisions are reasonably foreseeable and preventable](https://doi.org/10.1016/j.ssci.2023.106233)
+- (2023) [Anatomy of a Robotaxi Crash: Lessons from the Cruise Pedestrian Dragging Mishap](https://openalex.org/W4402338905)
+- (2023) [Critical Scenario Identification Concept: The Role of the Scenario-in-the-Loop Approach in Future Automotive Testing](https://doi.org/10.1109/access.2023.3298875)
+- (2023) [Criticality Metrics for Automated Driving: A Review and Suitability Analysis of the State of the Art](https://doi.org/10.1007/s11831-022-09788-7)
+- (2023) [Cut-Out Scenario Generation With Reasonability Foreseeable Parameter Range From Real Highway Dataset for Autonomous Vehicle Assessment](https://doi.org/10.1109/access.2023.3268703)
+- (2023) [Corner Cases in Data-Driven Automated Driving: Definitions, Properties and Solutions](https://doi.org/10.1109/iv55152.2023.10186558)
+- (2023) [What Does Really Count? Estimating Relevance of Corner Cases for Semantic Segmentation in Automated Driving](https://openalex.org/W4390190791)
+- (2023) Road obstacle dataset Dataset
+- (2023) [Adversarial Generation of Safety-Critical Lane-Change Scenarios for Autonomous Vehicles](https://doi.org/10.1109/itsc57777.2023.10422684) NEW
+- (2023) [Generating Edge Cases for Testing Autonomous Vehicles Using Real-World Data](https://doi.org/10.3390/s24010108) NEW
+- (2023) [Risk Scenario Generation for Autonomous Driving Systems based on Scenario Evaluation Model](https://doi.org/10.1109/ijcnn54540.2023.10191164) NEW
+- (2023) [Automatic Generation of Scenarios for System-level Simulation-based Verification of Autonomous Driving Systems](https://doi.org/10.4204/eptcs.395.8) NEW
+- (2023) [AdvSce: safety-critical scenario generation for testing autonomous driving systems](https://doi.org/10.1360/ssi-2022-0317) NEW
+- (2023) [Autonomous Vehicles Testing Considering Utility-Based Operable Tasks](https://doi.org/10.26599/tst.2022.9010037) NEW
+- (2023) [How certain are we that our automated driving system is safe?](https://doi.org/10.1080/15389588.2023.2186733) NEW
+- (2023) [SAFE-SIM: Safety-Critical Closed-Loop Traffic Simulation with Diffusion-Controllable Adversaries](https://doi.org/10.48550/arxiv.2401.00391) NEW
+- (2023) [Adversarial Safety-Critical Scenario Generation Using Naturalistic Human Driving Priors](https://doi.org/10.1109/tiv.2023.3335862) NEW
+- (2023) [Scenario Generation for Autonomous Vehicles with Deep-Learning-Based Heterogeneous Driver Models: Implementation and Verification](https://doi.org/10.3390/s23094570) NEW
+- (2022) [Virtual Verification of Decision Making and Motion Planning Functionalities for Automated Vehicles in Urban Edge Case Scenarios](https://doi.org/10.4271/2022-01-0841)
+- (2022) [Detecting Hazardous Events: A Framework for Automated Vehicle Safety Systems](https://doi.org/10.1109/itsc55140.2022.9921988)
+- (2022) [Indy autonomous challenge-autonomous race cars at the handling limits](https://openalex.org/W4225642194)
+- (2022) [A survey on data-driven scenario generation for automated vehicle testing](https://openalex.org/W4309711132)
+- (2022) [Intra-domain and cross-domain transfer learning for time series data—How transferable are the features?](https://openalex.org/W4200114345)
+- (2022) [Processing, assessing, and enhancing the Waymo autonomous vehicle open dataset for driving behavior research](https://openalex.org/W4200170951)
+- (2021) [A review of surrogate safety measures and their applications in connected and automated vehicles safety modeling](https://doi.org/10.1016/j.aap.2021.106157)
+- (2021) [A Systematic Mapping Review of Surrogate Safety Assessment Using Traffic Conflict Techniques](https://doi.org/10.1016/j.aap.2021.106016)
+- (2021) [A Theoretical Foundation of Intelligence Testing and Its Application for Intelligent Vehicles](https://doi.org/10.1109/tits.2020.2991039)
+- (2021) [Deep Learning for Anomaly Detection: A Review](https://doi.org/10.1145/3439950)
+- (2021) [Modeling traffic conflicts for use in road safety analysis: A review of analytic methods and future directions](https://doi.org/10.1016/j.amar.2020.100142)
+- (2021) UN Regulation No 157 – Uniform provisions concerning the approval of vehicles with regards to Automated Lane Keeping Systems [2021/389]
+- (2021) [Coyote: A Dataset of Challenging Scenarios in Visual Perception for Autonomous Vehicles](https://openalex.org/W3196712506)
+- (2021) [Efficient and effective generation of test cases for pedestrian detection-search-based software testing of Baidu Apollo in SVL](https://openalex.org/W3199951670)
+- (2021) [Transfer learning with time series data: a systematic mapping study](https://openalex.org/W4206564475)
+- (2021) [A review on outlier/anomaly detection in time series data](https://openalex.org/W3005893373)
+- (2021) [Time-series forecasting with deep learning: a survey](https://openalex.org/W3022643593)
+- (2020) [Defining interactions: a conceptual framework for understanding interactive behaviour in human and automated road traffic](https://doi.org/10.1080/1463922x.2020.1736686)
+- (2020) [Efficient statistical validation with edge cases to evaluate Highly Automated Vehicles](https://doi.org/10.1109/itsc45102.2020.9294590)
+- (2020) [Identification of Challenging Highway-Scenarios for the Safety Validation of Automated Vehicles Based on Real Driving Data](https://doi.org/10.1109/ever48776.2020.9242539)
+- (2020) [Method for Quantitative Evaluation of Traffic Complexity on the Highway](https://openalex.org/W3082123856)
+- (2020) [Scalable Generation of Statistical Evidence for the Safety of Automated Vehicles by the Use of Importance Sampling](https://doi.org/10.1109/itsc45102.2020.9294503)
+- (2020) [Multipath propagation analysis and ghost target removal for FMCW automotive radars](https://openalex.org/W3201093223)
+- (2020) [Attacking vision-based perception in end-to-end autonomous driving models](https://openalex.org/W3015176854)
+- (2019) [Generating Adversarial Driving Scenarios in High-Fidelity Simulators](https://doi.org/10.1109/icra.2019.8793740)
+- (2019) [Rapidly-exploring Random Trees for Testing Automated Vehicles](https://doi.org/10.1109/itsc.2019.8917375)
+- (2019) Towards corner case identification in cyclists’ trajectories
+- (2019) [MIT advanced vehicle technology study: Large-scale naturalistic driving study of driver behavior and interaction with automation](https://openalex.org/W2959716684)
+- (2019) [Predicting Model Failure using Saliency Maps in Autonomous Driving Systems](https://openalex.org/W2945526826)
+- (2018) [Accelerated Evaluation of Automated Vehicles in Car-Following Maneuvers](https://doi.org/10.1109/tits.2017.2701846)
+- (2018) [Accelerated testing for automated vehicles safety evaluation in cut-in scenarios based on importance sampling, genetic algorithm and simulation applications](https://doi.org/10.1108/jicv-01-2018-0002)
+- (2018) [Automatic Generation of Safety-Critical Test Scenarios for Collision Avoidance of Road Vehicles](https://doi.org/10.1109/ivs.2018.8500374)
+- (2018) [Deeptest: Automated testing of deep-neural-network-driven autonomous cars](https://openalex.org/W2753704268)
+- (2018) [Estimating the expected number of crashes with traffic conflicts and the Lomax Distribution – A theoretical and numerical exploration](https://doi.org/10.1016/j.aap.2018.01.008)
+- (2018) [Novelty detection with CANDIES: a holistic technique based on probabilistic models](https://doi.org/10.1007/s13042-016-0618-8)
+- (2018) [Traffic Sensory Data Classification by Quantifying Scenario Complexity](https://doi.org/10.1109/ivs.2018.8500669)
+- (2018) [Analysis of multipath and DOA detection using a fully polarimetric automotive radar](https://openalex.org/W4250721005)
+- (2018) [Detecting road lanes under extreme conditions: A quantitative performance evaluation](https://openalex.org/W2953831280)
+- (2018) [From antenna design to high fidelity, full physics automotive radar sensor corner case simulation](https://openalex.org/W2907377465)
+- (2018) [Toward a Framework for Highly Automated Vehicle Safety Validation](https://openalex.org/W2795800960)
+- (2017) [A Cost-Effective Framework for Automated Vehicle-Pedestrian Near-Miss Detection Through Onboard Monocular Vision](https://openalex.org/W2736402913)
+- (2017) [Assessment of Automated Driving Systems using real-life scenarios](https://doi.org/10.1109/ivs.2017.7995782)
+- (2017) [Analyzing computer vision data-the good, the bad and the ugly](https://openalex.org/W2738290714)
+- (2016) [Comparing Collision Threat Measures for Verification of Autonomous Vehicles using Extreme Value Theory](https://doi.org/10.1016/j.ifacol.2016.07.709)
+- (2016) [Challenges in Autonomous Vehicle Testing and Validation](https://openalex.org/W2328067583)
+- (2016) [Evading the Curse of Dimensionality in Nonparametric Density Estimation with Simplified Vine Copulas](https://doi.org/10.1016/j.jmva.2016.07.003)
+- (2016) [Lost and found: detecting small road hazards for self-driving vehicles](https://openalex.org/W2521444719)
+- (2014) [Online Learning and Sequential Anomaly Detection in Trajectories](https://doi.org/10.1109/tpami.2013.172)
+- (2013) The 2nd Strategic Highway Research Program Naturalistic Driving Study Dataset
+- (2011) [Outline for a causal model of traffic conflicts and crashes](https://doi.org/10.1016/j.aap.2011.05.001)
+- (2009) [Pair-Copula Constructions of Multiple Dependence](https://doi.org/10.1016/j.insmatheco.2007.02.001)
+- (2008) [A situation and threat assessment algorithm for a rear-end collision avoidance system](https://doi.org/10.1109/ivs.2008.4621250)
+- (2008) [A survey of vision-based trajectory learning and analysis for surveillance](https://doi.org/10.1109/tcsvt.2008.927109)
+- (1972) [Near Miss Determination Through Use of a Scale of Danger](https://openalex.org/W2240306106)
 
-## Repository layout
+## Knowledge-driven  (51)
 
-```
-av-edge-case-survey/
-├── README.md
-├── BIBLIOGRAPHY.md            # auto-generated, browsable, grouped by category
-├── config.yaml               # search terms + tuning parameters (mirrors src defaults)
-├── requirements.txt
-├── src/
-│   ├── harvest.py            # OpenAlex retrieval (Boolean phrase queries)
-│   ├── classify.py          # centroid classifier (trained on the seed's section labels)
-│   ├── classify_llm.py      # OPTIONAL modular-LLM second opinion (needs API key)
-│   ├── discover.py          # end-to-end: harvest → screen → classify → select → write
-│   ├── figures.py           # scientometric figures (trend, heatmap, network)
-│   └── report.py            # build BIBLIOGRAPHY.md from the data
-├── data/
-│   ├── seed_corpus.csv       # 244 canonical seed works + category & label_source
-│   ├── discovered.csv        # curated living additions, retained and extended monthly
-│   ├── candidates_scored.csv # full scored candidate list (transparency)
-│   └── bibliography.csv      # merged seed + discovered, categorised
-├── figures/                  # scientometric figures for the LIVING corpus (+ PRISMA)
-└── .github/workflows/update.yml   # monthly auto-refresh
-```
+- (2026) [Protocol for the Extraction of Safety Critical Automated Driving Scenarios](https://doi.org/10.2139/ssrn.6864939) NEW
+- (2026) [ODD and Behavior-Based Approach to Scenario Coverage for Automated Driving Systems Testing](https://doi.org/10.1109/access.2026.3665396) NEW
+- (2025) [Identification of Risk Scenario Parameters Utilizing a Near-Miss Incident Database for Safety Assessment of Autonomous Driving Systems](https://doi.org/10.1109/iavvc61942.2025.11219497) NEW
+- (2025) [Scenario Metrics for the Safety Assurance Framework of Automated Vehicles: A Review of Its Application](https://doi.org/10.3390/vehicles7030100) NEW
+- (2025) [Simulation-Based Logical Scenario Generation and Analysis Methodology for Evaluation of Autonomous Driving Systems](https://doi.org/10.1109/access.2025.3548906) NEW
+- (2025) [Grasping Causality for the Explanation of Criticality for Automated Driving](https://doi.org/10.1109/access.2025.3555177) NEW
+- (2024) [Industry Practices for Challenging Autonomous Driving Systems with Critical Scenarios](https://doi.org/10.1145/3640334) NEW
+- (2024) [Integrating Data-Driven and Knowledge-Driven Methodologies for Safety-Critical Scenario Generation in Autonomous Vehicle Validation](https://doi.org/10.1109/qrs-c63300.2024.00129) NEW
+- (2024) [ODD and Behavior Based Scenario Generation for Automated Driving Systems](https://doi.org/10.1109/access.2024.3350512) NEW
+- (2024) [Ontology-based Scenario Generation for Automated Driving Systems Verification and Validation using Rules of the Road](https://doi.org/10.1109/tiv.2024.3377534) NEW
+- (2023) [Advancing investigation of automated vehicle crashes using text analytics of crash narratives and Bayesian analysis](https://openalex.org/W4312199925)
+- (2023) [Leveraging the GIDAS Database for the Criticality Analysis of Automated Driving Systems](https://doi.org/10.1155/2023/1349269)
+- (2023) [One Ontology to Rule Them All: Corner Case Scenarios for Autonomous Driving](https://doi.org/10.1007/978-3-031-25072-9_29/figures/5)
+- (2023) [Realising meaningful human control over automated driving systems: a multidisciplinary approach](https://openalex.org/W4288096333)
+- (2023) [Bridging Data-Driven and Knowledge-Driven Approaches for Safety-Critical Scenario Generation in Automated Vehicle Validation](https://doi.org/10.48550/arxiv.2311.10937) NEW
+- (2023) [Critical Scenario Techniques for Automated Vehicles: Literature Review](https://doi.org/10.11128/arep.21.a2124) NEW
+- (2023) [Acquire Driving Scenarios Efficiently: A Framework for Prospective Assessment of Cost-Optimal Scenario Acquisition](https://doi.org/10.1109/itsc57777.2023.10422027) NEW
+- (2022) [Defining Reasonably Foreseeable Parameter Ranges Using Real-World Traffic Data for Scenario-Based Safety Assessment of Automated Vehicles](https://doi.org/10.1109/access.2022.3162601)
+- (2022) [Space, Time, and Interaction: A Taxonomy of Corner Cases in Trajectory Datasets for Automated Driving](https://doi.org/10.1109/ssci51031.2022.10022241)
+- (2022) [Using Ontologies for the Formalization and Recognition of Criticality for Automated Driving](https://openalex.org/W4285113095)
+- (2022) [Verification and Validation Methods for Decision-Making and Planning of Automated Vehicles: A Review](https://doi.org/10.1109/tiv.2022.3196396)
+- (2022) [Anomaly Detection in Autonomous Driving: A Survey](https://openalex.org/W4385312751)
+- (2022) [Efficient out-of-distribution detection using latent space of $\beta$-vae for cyber-physical systems](https://openalex.org/W3195576835)
+- (2022) [A survey on knowledge graph-based methods for automated driving](https://openalex.org/W4313041116)
+- (2022) [Risk assessment methodologies for autonomous driving: A survey](https://openalex.org/W4226316432)
+- (2021) [Criticality Analysis for the Verification and Validation of Automated Vehicles](https://doi.org/10.1109/access.2021.3053159)
+- (2021) [Description of Corner Cases in Automated Driving: Goals and Challenges](https://openalex.org/W3201551811)
+- (2021) [SAE J3016: Taxonomy and Definitions for Terms Related to Driving Automation Systems for On-Road Motor Vehicles](https://openalex.org/W3161692923)
+- (2021) [RadarScenes: A Real-World Radar Point Cloud Data Set for Automotive Applications](https://doi.org/10.5281/zenodo.4559821)
+- (2021) [Taxonomy and Definitions for Terms Related to Driving Automation Systems for On-Road Motor Vehicles](https://openalex.org/W4225555528)
+- (2020) [Human factors contributing to the road traffic accident occurrence](https://doi.org/10.1016/j.trpro.2020.03.057)
+- (2020) [Identification and Quantification of Hazardous Scenarios for Automated Driving](https://openalex.org/W3083765321)
+- (2020) MIT DriveSeg (Semi-auto) Dataset: Large-scale Semi-automated Annotation of Semantic Driving Scenes
+- (2020) [Safety at the edge: A safety framework to identify edge conditions in the future transportation system with highly automated vehicles](https://doi.org/10.1136/injuryprev-2019-043134)
+- (2020) [Knowledge graphs: Research directions](https://openalex.org/W3093877078)
+- (2019) [Crash data quality for road safety research: Current state and future directions](https://openalex.org/W2593201274)
+- (2019) [Edge conditions and crash-avoidance roles: The future of traffic safety in the world of autonomous vehicles](https://doi.org/10.1136/injuryprev-2017-042567)
+- (2019) [The history, present and future with IoT](https://openalex.org/W2907165140)
+- (2018) [Using Ontologies for Test Suites Generation for Automated and Autonomous Driving Functions](https://doi.org/10.1109/issrew.2018.00-20)
+- (2018) [Predicted road traffic fatalities in Germany: the potential and limitations of vehicle safety technologies from passive safety to highly automated driving](https://openalex.org/W2936698298)
+- (2018) [Meaningful human control over autonomous systems: A philosophical account](https://openalex.org/W2792435043)
+- (2017) [Ontology based Scene Creation for the Development of Automated Vehicles](https://openalex.org/W2606516936)
+- (2017) [Towards increased reliability by objectification of Hazard Analysis and Risk Assessment (HARA) of automated automotive systems](https://openalex.org/W2607127338)
+- (2016) [Engineering a safer world: Systems thinking applied to safety](https://openalex.org/W642120166)
+- (2014) [Preparing for the future: development of an ‘antifragile’methodology that complements scenario planning by omitting causation](https://openalex.org/W2028705955)
+- (2014) [Antifragile: Things that gain from disorder](https://openalex.org/W2093217276)
+- (2012) [Computing Behavioral Relations for Probabilistic Concurrent Systems](https://doi.org/10.1007/978-3-662-45489-3_5)
+- (2012) [Injury protection and accident causation parameters for vulnerable road users based on German In-Depth Accident Study GIDAS](https://openalex.org/W2001731782)
+- (2009) CADaS-A common road accident data framework in Europe
+- (2004) Parsing owl dl: trees or triples?
+- (1995) Ontologies and knowledge bases
 
----
+## Assessment  (12)
 
-## Quickstart
+- (2024) [Detecting Edge Cases from Trajectory Datasets Using Deep Learning Based Outlier Detection](https://openalex.org/W4396681041)
+- (2024) [Interpreting Autonomous Driving Corner Cases: A Visual Analytics Approach](https://openalex.org/W4399307645)
+- (2022) Vista 2.0: An open, data-driven simulator for multimodal sensing and policy learning for autonomous vehicles
+- (2021) [Corner case generation and analysis for safety assessment of autonomous vehicles](https://openalex.org/W3179903080)
+- (2021) [End-to-End Autonomous Driving Risk Analysis: A Behavioural Anomaly Detection Approach](https://doi.org/10.1109/tits.2020.2975043)
+- (2021) [PerceMon: Online Monitoring for Perception Systems](https://doi.org/10.1007/978-3-030-88494-9_18)
+- (2021) [Road anomaly detection by partial image reconstruction with segmentation coupling](https://openalex.org/W3201876338)
+- (2020) [Generalized odin: Detecting out-of-distribution image without learning from out-of-distribution data](https://openalex.org/W3034230713)
+- (2020) [Misbehaviour prediction for autonomous driving systems](https://openalex.org/W3089756992)
+- (2020) [Real-time Out-of-distribution Detection in Learning-Enabled Cyber-Physical Systems](https://doi.org/10.1109/iccps48487.2020.00024)
+- (2019) [Prediction of Near-Crashes from Observed Vehicle Kinematics using Machine Learning](https://doi.org/10.1177/0361198119862629)
+- (2017) [CARLA: An open urban driving simulator](https://openalex.org/W2767621168)
 
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+## Background  (25)
 
-cd src
-python discover.py            # harvest, screen, classify, write data/*.csv
-python report.py              # regenerate BIBLIOGRAPHY.md
+- (2025) [A review of scenario cases for autonomous transportation system: Insights from CAV safety testing and scenario generation](https://openalex.org/W4408308558)
+- (2025) A comprehensive survey of federated learning approaches for privacy-preserving machine learning
+- (2024) [Choose your simulator wisely: A review on open-source simulators for autonomous driving](https://openalex.org/W4392523567)
+- (2024) [Autonomous Vehicle Security: A Deep Dive into Threat Modeling](https://openalex.org/W4405713946)
+- (2024) [Automated Vehicles at Unsignalized Intersections: Safety and Efficiency Implications of Mixed-Human-Automated Traffic](https://openalex.org/W4415495332)
+- (2023) [A Systematic Approach Towards the Definition of the Terms Edge Case and Corner Case for Automated Driving](https://openalex.org/W4386952762)
+- (2023) [How simulation helps autonomous driving: A survey of sim2real, digital twins, and parallel intelligence](https://openalex.org/W4386494508)
+- (2023) [A Bi-Level Real-Time Microsimulation Framework for Modeling Two-Dimensional Vehicular Maneuvers at Intersections](https://openalex.org/W4391768850)
+- (2023) [Cybersecurity of autonomous vehicles: A systematic literature review of adversarial attacks and defense models](https://openalex.org/W4362714293)
+- (2022) [Finding Critical Scenarios for Automated Driving Systems: A Systematic Mapping Study](https://doi.org/10.1109/tse.2022.3170122)
+- (2022) [Recent advancements in automated vehicle certification: How the experience from the nuclear sector contributed to making them a reality](https://openalex.org/W4306742302)
+- (2022) [Road Vehicles --- Safety of the Intended Functionality](https://openalex.org/W4240672450)
+- (2022) [Road vehicles -- Safety for automated driving systems -- Design, verification and validation](https://openalex.org/W4236643515)
+- (2021) [An application-driven conceptualization of corner cases for perception in highly automated driving](https://doi.org/10.1109/iv48863.2021.9575933)
+- (2021) [Four responsibility gaps with artificial intelligence: Why they matter and how to address them](https://openalex.org/W3160005967)
+- (2021) New Assessment/Test Method for Automated Driving (NATM) Guidelines for Validating Automated Driving System (ADS)
+- (2021) [Unsupervised transfer learning for anomaly detection: Application to complementary operating condition transfer](https://openalex.org/W3109541357)
+- (2021) [Explainable artificial intelligence: an analytical review](https://openalex.org/W3182546273)
+- (2021) [Risk quantification for automated driving systems in real-world driving scenarios](https://openalex.org/W4205806550)
+- (2021) [Cybersecurity for autonomous vehicles: Review of attacks and defense](https://openalex.org/W3119621753)
+- (2020) Interpretable machine learning
+- (2019) [Credible Autonomy Safety Argumentation](https://openalex.org/W7125637341)
+- (2019) [Multi-sensor fusion in automated driving: A survey](https://openalex.org/W2996945478)
+- (2019) [A review of sensor technologies for perception in automated driving](https://openalex.org/W2976534600)
+- (2018) World models
 
-# inspect the calibration without writing anything:
-python discover.py --tune
-# force a fresh OpenAlex query (ignore the local harvest cache):
-python discover.py --refresh
-```
-
-### Tuning
-
-Strictness is controlled in `src/discover.py` (mirrored in `config.yaml`):
-
-| Parameter | Meaning | Default |
-|---|---|---|
-| `SEED_SIM_PCTL` | seed-similarity floor (percentile of seed LOO distribution) | 50 |
-| `MARGIN_PCTL` | topical-relevance floor | 25 |
-| `BOOTSTRAP_TARGET` | first-run size of the curated living addition when `discovered.csv` is empty | 120 |
-| `MONTHLY_ADD_LIMIT` | maximum number of newly selected papers appended by each later run | 5 |
-| `CEILING_FRAC` | soft ceiling: max share of picks from one class | 0.60 |
-| `YEAR_CEILING_FRAC` | optional max share of picks from one publication year | 0.40 |
-| `RECENCY_WEIGHT` | optional recency bonus per year added to the rank score | 0.01 |
-| `MAX_PUBLICATION_DATE` | latest publication date included in the bibliography snapshot; `null` means the run date | null |
-| `FROM_YEAR` | earliest publication year to consider | 2023 |
-
-Raise the percentiles for a stricter set, or lower `MONTHLY_ADD_LIMIT` for
-slower growth.
-
-### Optional: modular-LLM second opinion
-
-The default classifier runs without any key (Sentence-BERT + calibrated gates +
-nearest-centroid taxonomy). For a higher-accuracy audit pass over borderline
-(`needs_review`) papers, enable the optional modular LLM layer:
-
-```bash
-pip install anthropic
-export ANTHROPIC_API_KEY=sk-...
-python src/discover.py --no-append
-```
-
-Set `use_llm: true` in [`config.yaml`](config.yaml) first. The LLM receives only
-bibliographic metadata, title, abstract, and the embedding-based screening
-evidence. It returns structured JSON fields (`llm_relevant`, `llm_class`,
-`llm_subtopic`, `llm_confidence`, `llm_reason`, plus model/prompt metadata).
-High-confidence agreement is recorded as `llm_agrees`; high-confidence
-non-relevance or class disagreement is retained as a human-review flag rather
-than automatically deleting a paper. Use `--no-append` when you only want to
-refresh scores or LLM audit fields for the current bibliography; omit it for the
-scheduled monthly update that may append up to five new papers.
-
----
-
-## Figures
-
-`src/figures.py` regenerates the scientometric figures for **the living corpus**
-(seed + discovered) into [`figures/`](figures): a publication-per-year trend, a
-BERTopic topic × class heatmap, a curated keyword co-occurrence network, and the
-PRISMA flow. A separate static methodology flowchart in
-[`figures/methodology_flow_living.tex`](figures/methodology_flow_living.tex)
-summarizes the monthly update workflow. The bibliography may include 2026 records, but all scientometric
-panels generated with `--trend-max 2025` exclude records after 2025. These are
-the repository's *own* figures and are deliberately distinct from the figures in
-the paper, which characterise the smaller, fixed survey corpus:
-
-```bash
-python src/figures.py --input data/bibliography.csv --outdir figures --trend-min 2015 --trend-max 2025
-```
-
-| Publication trend | Topics × taxonomy | Concept co-occurrence |
-|:--:|:--:|:--:|
-| ![trend](figures/scientometric_trend.png) | ![heatmap](figures/topic_class_heatmap.png) | ![network](figures/keyword_network.png) |
-
-![PRISMA](figures/prisma_flow.png)
-
-## Reproducibility & archival
-
-The living workflow uses the run date by default, so it can keep growing. For a
-citable, frozen version (as referenced in the paper), set
-`max_publication_date` to a fixed date, run the pipeline, and archive a release
-on [Zenodo](https://zenodo.org) to obtain a DOI:
-
-1. Tag a release on GitHub (`v1.0.0`).
-2. Enable the repository in Zenodo; a DOI is minted automatically.
-3. Cite that DOI in the paper's data-availability statement.
-
----
-
-## How to cite
-
-If you use this resource, please cite the survey (and, if relevant, the Zenodo
-snapshot DOI). The pipeline builds on OpenAlex, Sentence-BERT
-(Reimers & Gurevych, 2019), and BERTopic (Grootendorst, 2022).
-
-## License
-
-MIT — see [LICENSE](LICENSE). Bibliographic metadata is sourced from OpenAlex
-under CC0.
+<!-- END GENERATED BIBLIOGRAPHY -->
