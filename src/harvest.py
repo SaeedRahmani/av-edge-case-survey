@@ -65,7 +65,7 @@ AV_TERMS = _CFG.get("av_terms") or [
 def _get(url: str, mailto: str = MAILTO) -> dict:
     sep = "&" if "?" in url else "?"
     url = f"{url}{sep}mailto={mailto}"
-    req = urllib.request.Request(url, headers={"User-Agent": f"living-survey ({mailto})"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"av-edge-case-survey ({mailto})"})
     with urllib.request.urlopen(req, timeout=40) as r:
         return json.load(r)
 

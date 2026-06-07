@@ -1,4 +1,4 @@
-name: Living literature update
+name: AV edge-case survey update
 
 # Re-runs discovery monthly, appends up to five new papers, and commits outputs.
 on:
@@ -33,7 +33,7 @@ jobs:
 
       - name: Commit refreshed bibliography
         run: |
-          git config user.name  "living-survey-bot"
+          git config user.name  "av-edge-case-survey-bot"
           git config user.email "actions@github.com"
           git add data/ figures/ BIBLIOGRAPHY.md
           git commit -m "chore: monthly living-literature update [skip ci]" || echo "no changes"

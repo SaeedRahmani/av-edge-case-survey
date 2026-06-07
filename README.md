@@ -1,7 +1,9 @@
-# Living Survey: Edge-Case Detection & Assessment for Automated Driving
+# AV Edge-Case Survey
 
-A **living, automatically updated companion** to the survey
+A **living, automatically updated companion repository** to the survey
 *"Edge Cases in Automated Driving: A Survey of Detection and Assessment Methods"*.
+
+Public repository: [SaeedRahmani/av-edge-case-survey](https://github.com/SaeedRahmani/av-edge-case-survey).
 
 This repository operationalises the survey's methodology as a reproducible,
 semi-automated pipeline. It (1) carries the **expert-curated reference corpus**
@@ -42,7 +44,7 @@ OpenAlex API ──▶ harvest ──▶ de-duplicate ──▶ embed (Sentence-
                     discovered.csv · candidates_scored.csv · BIBLIOGRAPHY.md
 ```
 
-![Living-survey methodology flowchart](figures/methodology_flow_living.png)
+![AV edge-case survey methodology flowchart](figures/methodology_flow_living.png)
 
 **Why two gates and calibration?** Naively searching OpenAlex returns thousands
 of loosely-related AV papers. To stay *consistent with the survey's actual
@@ -83,9 +85,9 @@ Scientometric figures use a separate cutoff and omit 2026, ending at 2025.
 
 Categories are **not** guessed from hand-written descriptions. Each *seed* paper
 is labelled by the **uncommented citation in the section of the survey that
-reviews it** (ground truth; see
-[`analysis/section_labels.py`](../analysis/section_labels.py)). The class
-prototypes (centroids) of those ground-truth papers then classify newly
+reviews it** in the source manuscript. Those ground-truth labels are stored in
+[`data/seed_corpus.csv`](data/seed_corpus.csv). The class prototypes
+(centroids) of those ground-truth papers then classify newly
 *discovered* papers ([`src/classify.py`](src/classify.py)). On the seed this
 classifier scores **76% leave-one-out accuracy** (Perception 89% / Trajectory
 60% / Knowledge 76%). *Assessment* overlaps the methods it evaluates, so it is
@@ -96,7 +98,7 @@ kept as a ground-truth-only seed category and is not an automated target.
 ## Repository layout
 
 ```
-living-survey/
+av-edge-case-survey/
 ├── README.md
 ├── BIBLIOGRAPHY.md            # auto-generated, browsable, grouped by category
 ├── config.yaml               # search terms + tuning parameters (mirrors src defaults)

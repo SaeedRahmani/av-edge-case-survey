@@ -1,7 +1,7 @@
 """
 classify.py
 -----------
-Shared classifier used by BOTH the paper-side analysis and the living-survey
+Shared classifier used by BOTH the paper-side analysis and the av-edge-case-survey
 repository.
 
 Unlike the earlier version (which compared papers to hand-written anchor
