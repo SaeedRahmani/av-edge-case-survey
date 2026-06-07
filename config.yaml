@@ -4,7 +4,7 @@
 
 # --- retrieval ---
 from_year: 2023             # surface genuinely new work since the survey
-max_publication_date: "2025-12-31"  # omit unfinished current-year records from this release/trend
+max_publication_date: "2026-06-07"  # living bibliography snapshot; figures still cap trends at 2025
 mailto: saeedrmd@gmail.com  # OpenAlex polite pool
 
 # Boolean search decomposed into AV-term x edge-case-term phrase queries.

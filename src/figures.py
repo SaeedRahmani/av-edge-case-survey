@@ -154,6 +154,22 @@ def fig_trend(rows, outdir, ymin, ymax):
     _save(fig, outdir, "scientometric_trend")
 
 
+def filter_figure_years(rows, max_year):
+    kept = []
+    skipped = 0
+    for row in rows:
+        try:
+            year = int(str(row.get("year", ""))[:4])
+        except (ValueError, TypeError):
+            kept.append(row)
+            continue
+        if year <= max_year:
+            kept.append(row)
+        else:
+            skipped += 1
+    return kept, skipped
+
+
 # --------------------------------------------------------------------------- #
 def fig_topic_heatmap(rows, outdir, n_topics=9):
     from bertopic import BERTopic
@@ -297,8 +313,11 @@ def main():
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
-    rows = load(args.input)
+    loaded_rows = load(args.input)
+    rows, skipped_future = filter_figure_years(loaded_rows, args.trend_max)
     print(f"loaded {len(rows)} classified papers from {args.input}")
+    if skipped_future:
+        print(f"  excluded {skipped_future} rows after {args.trend_max} from all figures")
     fig_trend(rows, args.outdir, args.trend_min, args.trend_max)
     fig_topic_heatmap(rows, args.outdir)
     fig_concept_network(rows, args.outdir)

@@ -1,0 +1,19 @@
+bibkey,title,doi,reason
+page2021prisma,The PRISMA 2020 statement: an updated guideline for reporting systematic reviews,10.1136/bmj.n71,paper_reference_not_auto_discovered
+grootendorst2022bertopic,BERTopic: Neural topic modeling with a class-based TF-IDF procedure,,paper_reference_not_auto_discovered
+reimers2019sentencebert,Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks,10.18653/v1/d19-1410,paper_reference_not_auto_discovered
+vaneck2010software,"Software survey: VOSviewer, a computer program for bibliometric mapping",10.1007/s11192-009-0146-3,paper_reference_not_auto_discovered
+priem2022openalex,OpenAlex: A fully-open index of scholarly works authors venues institutions and concepts,10.48550/arxiv.2205.01833,paper_reference_not_auto_discovered
+devlin2019bert,BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding,10.18653/v1/n19-1423,paper_reference_not_auto_discovered
+blei2003lda,Latent Dirichlet Allocation,,paper_reference_not_auto_discovered
+nekrasov2025spotting,Spotting the Unexpected STU: A 3D LiDAR Dataset for Anomaly Segmentation in Autonomous Driving,10.1109/cvpr52734.2025.01109,paper_reference_not_auto_discovered
+nekrasov2025oodis,OoDIS: Anomaly Instance Segmentation and Detection Benchmark,10.1109/icra55743.2025.11128111,paper_reference_not_auto_discovered
+bikandi2023synthetic,Synthetic Outlier Generation for Anomaly Detection in Autonomous Driving,10.1109/itsc57777.2023.10422167,paper_reference_not_auto_discovered
+grcic2024dense,Dense Out-of-Distribution Detection by Robust Learning on Synthetic Negative Data,10.3390/s24041248,paper_reference_not_auto_discovered
+ding2023survey,A Survey on Safety-Critical Driving Scenario Generation-A Methodological Perspective,10.1109/tits.2023.3259322,paper_reference_not_auto_discovered
+liang2026corner,Corner Case Detection and Generation for Autonomous Driving: An Overview,10.1109/tits.2026.3688488,paper_reference_not_auto_discovered
+ruchiga2023generic,Generic Ontology and Framework for Critical Scenario Description and Generation. Applied to Evaluation and Validation of Automated Vehicle,10.1109/itsc57777.2023.10421937,paper_reference_not_auto_discovered
+luttner2025assessing,Assessing Critical Traffic Scenarios: A Modular Evaluation Framework,10.1109/tits.2025.3546081,paper_reference_not_auto_discovered
+hao2023bridging,Bridging the gap between autonomous vehicles and non-autonomous road users: A vehicle communication-based approach,,paper_reference_not_auto_discovered
+chen2025cooccurrence,Co-occurrence knowledge graph construction based on corner cases,10.1117/12.3066911,paper_reference_not_auto_discovered
+ondemand2025scenario,On-Demand Scenario Generation for Testing Automated Driving Systems,10.1145/3715722,paper_reference_not_auto_discovered

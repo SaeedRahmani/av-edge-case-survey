@@ -53,15 +53,17 @@ with a modest recency nudge (`recency_weight: 0.01` by default) under a **soft
 per-class ceiling** (no class exceeds 60% of the picks) and an optional per-year
 ceiling; the full scored list is preserved in `candidates_scored.csv`.
 
-In the most recent run: **2,836** records harvested → **69** preprint-mill
-sources, **199** unfinished current-year records, and **1** configured
-source/title exclusion dropped → **2,379** after de-duplication → **657** above
-the relevance floor → **120** curated additions, merged with the **244**-work
-canonical seed into a **364**-study living bibliography (~1.5× the survey
-corpus). The discovered mix is Trajectory 72 / Perception 35 / Knowledge 13,
-with year counts 2023:28 / 2024:44 / 2025:48. The discovered set is intentionally
-broader and more recent than the survey itself, which is the point of a *living*
-companion.
+In the most recent run (OpenAlex snapshot through **2026-06-07**): **2,830**
+records harvested -> **68** preprint-mill sources, **1** configured source/title
+exclusion, and **36** paper-owned seed/reference overlaps dropped; **206**
+duplicate or near-duplicate records were also removed -> **2,519** after
+de-duplication -> **706** above the relevance floor -> **120** curated additions,
+merged with the **244**-work canonical seed into a **364**-study living
+bibliography (~1.5x the survey corpus). The discovered mix is Trajectory 72 /
+Perception 35 / Knowledge 13, with year counts 2023:20 / 2024:32 / 2025:47 /
+2026:21. The discovered set is intentionally broader and more recent than the
+survey itself, which is the point of a *living* companion. Scientometric figures
+use a separate cutoff and omit 2026, ending at 2025.
 
 ---
 
@@ -75,12 +77,13 @@ companion.
 | **Assessment** | metrics & evaluation of detection methods (ground-truth seed category only) |
 
 Categories are **not** guessed from hand-written descriptions. Each *seed* paper
-is labelled by the **section of the survey that reviews it** (ground truth; see
+is labelled by the **uncommented citation in the section of the survey that
+reviews it** (ground truth; see
 [`analysis/section_labels.py`](../analysis/section_labels.py)). The class
 prototypes (centroids) of those ground-truth papers then classify newly
 *discovered* papers ([`src/classify.py`](src/classify.py)). On the seed this
-classifier scores **74% leave-one-out accuracy** (Perception 89% / Trajectory
-60% / Knowledge 70%). *Assessment* overlaps the methods it evaluates, so it is
+classifier scores **76% leave-one-out accuracy** (Perception 89% / Trajectory
+60% / Knowledge 76%). *Assessment* overlaps the methods it evaluates, so it is
 kept as a ground-truth-only seed category and is not an automated target.
 
 ---
@@ -139,7 +142,7 @@ Strictness is controlled in `src/discover.py` (mirrored in `config.yaml`):
 | `CEILING_FRAC` | soft ceiling: max share of picks from one class | 0.60 |
 | `YEAR_CEILING_FRAC` | optional max share of picks from one publication year | 0.40 |
 | `RECENCY_WEIGHT` | optional recency bonus per year added to the rank score | 0.01 |
-| `MAX_PUBLICATION_DATE` | latest publication date included in the default live release | 2025-12-31 |
+| `MAX_PUBLICATION_DATE` | latest publication date included in the bibliography snapshot | 2026-06-07 |
 | `FROM_YEAR` | earliest publication year to consider | 2023 |
 
 Raise the percentiles / lower the cap for a stricter, smaller set.
@@ -159,9 +162,10 @@ python src/classify_llm.py
 ## Figures
 
 `src/figures.py` regenerates the scientometric figures for **the living corpus**
-(seed + discovered) into [`figures/`](figures): a publication-per-year trend
-through the completed year 2025, a BERTopic topic × class heatmap, a curated
-keyword co-occurrence network, and the PRISMA flow. These are
+(seed + discovered) into [`figures/`](figures): a publication-per-year trend, a
+BERTopic topic × class heatmap, a curated keyword co-occurrence network, and the
+PRISMA flow. The bibliography may include 2026 records, but all scientometric
+panels generated with `--trend-max 2025` exclude records after 2025. These are
 the repository's *own* figures and are deliberately distinct from the figures in
 the paper, which characterise the smaller, fixed survey corpus:
 

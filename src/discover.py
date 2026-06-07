@@ -39,6 +39,7 @@ import harvest as H
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(os.path.dirname(HERE), "data")
 SEED_CSV = os.path.join(DATA, "seed_corpus.csv")
+PAPER_REFERENCE_EXCLUSIONS = os.path.join(DATA, "paper_reference_exclusions.csv")
 HARVEST_CACHE = os.path.join(DATA, "_harvest_cache.json")
 CONFIG_YAML = os.path.join(os.path.dirname(HERE), "config.yaml")
 
@@ -99,6 +100,20 @@ def _canonical_id(row: dict) -> str:
     if openalex_id:
         return "oa:" + openalex_id
     return ""
+
+
+def _identity_keys(row: dict) -> set[str]:
+    keys = set()
+    title_key = _norm_title(row.get("title", ""))
+    if title_key:
+        keys.add("title:" + title_key)
+    doi = _clean_doi(row.get("doi", ""))
+    if doi:
+        keys.add("doi:" + doi)
+    openalex_id = (row.get("openalex_id") or "").strip().lower()
+    if openalex_id:
+        keys.add("oa:" + openalex_id)
+    return keys
 
 
 def _is_arxiv_version(row: dict) -> bool:
@@ -165,14 +180,60 @@ def load_seed():
     return list(seen.values())
 
 
+def load_paper_reference_exclusions():
+    if not os.path.exists(PAPER_REFERENCE_EXCLUSIONS):
+        return []
+    with open(PAPER_REFERENCE_EXCLUSIONS, encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def _cache_signature() -> dict:
+    return {
+        "from_year": FROM_YEAR,
+        "max_publication_date": str(MAX_PUBLICATION_DATE),
+        "av_terms": _CFG.get("av_terms"),
+        "edge_terms": _CFG.get("edge_terms"),
+    }
+
+
 def get_candidates(refresh=False):
     if os.path.exists(HARVEST_CACHE) and not refresh:
         with open(HARVEST_CACHE, encoding="utf-8") as f:
-            return json.load(f)
+            cached = json.load(f)
+        if isinstance(cached, dict) and cached.get("signature") == _cache_signature():
+            return cached.get("records", [])
+        if isinstance(cached, list) and str(MAX_PUBLICATION_DATE) == "2025-12-31":
+            return cached
+        print("Harvest cache does not match the current discovery window; refreshing ...")
     cands = H.harvest(from_year=FROM_YEAR, until_date=MAX_PUBLICATION_DATE)
     with open(HARVEST_CACHE, "w", encoding="utf-8") as f:
-        json.dump(cands, f)
+        json.dump({"signature": _cache_signature(), "records": cands}, f)
     return cands
+
+
+def add_candidate(candidate: dict, new_by_key: dict[str, dict], identity_to_group: dict[str, str]):
+    identities = _identity_keys(candidate)
+    group_keys = {identity_to_group[key] for key in identities if key in identity_to_group}
+    if not group_keys:
+        group_key = candidate.get("canonical_id") or sorted(identities)[0]
+        new_by_key[group_key] = candidate
+        for key in identities:
+            identity_to_group[key] = group_key
+        return
+
+    group_key = sorted(group_keys)[0]
+    rows = [candidate]
+    for existing_key in group_keys:
+        previous = new_by_key.pop(existing_key, None)
+        if previous is not None:
+            rows.append(previous)
+    keep = max(rows, key=_record_quality)
+    new_by_key[group_key] = keep
+    all_identities = set()
+    for row in rows:
+        all_identities.update(_identity_keys(row))
+    for key in all_identities:
+        identity_to_group[key] = group_key
 
 
 def doc_text(r):
@@ -231,8 +292,10 @@ def main():
     args = ap.parse_args()
 
     seed = load_seed()
-    seed_keys = {_canonical_id(row) for row in seed if _canonical_id(row)}
-    seed_titles = {_norm_title(row["title"]) for row in seed}
+    paper_exclusions = load_paper_reference_exclusions()
+    paper_owned_identity_keys = set()
+    for row in seed + paper_exclusions:
+        paper_owned_identity_keys.update(_identity_keys(row))
 
     print("Embedding seed corpus ...")
     seed_vecs = C.embed([doc_text(r) for r in seed])
@@ -246,13 +309,16 @@ def main():
     n_mill = 0
     n_future = 0
     n_source = 0
+    n_paper_owned = 0
     new_by_key: dict[str, dict] = {}
+    identity_to_group: dict[str, str] = {}
     for candidate in cands:
         title = candidate.get("title", "")
-        norm_title = _norm_title(title)
         candidate["canonical_id"] = _canonical_id(candidate)
-        if (candidate["canonical_id"] in seed_keys or norm_title in seed_titles
-                or len(title) <= 10):
+        if len(title) <= 10:
+            continue
+        if _identity_keys(candidate) & paper_owned_identity_keys:
+            n_paper_owned += 1
             continue
         if is_preprint_mill(candidate.get("doi", "")):
             n_mill += 1
@@ -263,12 +329,11 @@ def main():
         if _source_excluded(candidate):
             n_source += 1
             continue
-        previous = new_by_key.get(candidate["canonical_id"])
-        if previous is None or _record_quality(candidate) > _record_quality(previous):
-            new_by_key[candidate["canonical_id"]] = candidate
+        add_candidate(candidate, new_by_key, identity_to_group)
     new = list(new_by_key.values())
     print(f"Candidates: {len(cands)} harvested, dropped {n_mill} preprint-mill, "
-          f"{n_future} future-dated, {n_source} source/title exclusions, "
+          f"{n_future} outside date window, {n_source} source/title exclusions, "
+          f"{n_paper_owned} paper-owned overlaps, "
           f"{len(new)} after dedup")
 
     cand_vecs = C.embed([doc_text(r) for r in new])
