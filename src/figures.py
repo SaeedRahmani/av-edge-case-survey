@@ -41,13 +41,13 @@ from classify import embed
 
 plt.rcParams.update(
     {
-        "font.family": "serif",
-        "font.serif": ["Times New Roman", "DejaVu Serif"],
-        "font.size": 9,
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+        "font.size": 8.5,
         "axes.titlesize": 9,
         "axes.labelsize": 9,
         "mathtext.default": "regular",
-        "axes.linewidth": 0.6,
+        "axes.linewidth": 0.7,
     }
 )
 
@@ -55,10 +55,10 @@ plt.rcParams.update(
 # classifier targets the other three.
 CLASSES = ["Perception-related", "Trajectory-related", "Knowledge-driven", "Assessment"]
 CLASS_COLORS = {
-    "Perception-related": "#2f6fd0",
-    "Trajectory-related": "#2ca25f",
-    "Knowledge-driven": "#e08214",
-    "Assessment": "#8c6bb1",
+    "Perception-related": "#241a73",
+    "Trajectory-related": "#5b55d6",
+    "Knowledge-driven": "#de8f2a",
+    "Assessment": "#aebcff",
 }
 # short legend names
 CLASS_SHORT = {"Perception-related": "Perception", "Trajectory-related": "Trajectory",
@@ -135,21 +135,32 @@ def fig_trend(rows, outdir, ymin, ymax):
             counts[r["category"]][y - ymin] += 1
 
     fig, ax = plt.subplots(figsize=(3.5, 2.4))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("#fbfbff")
     bottom = np.zeros(len(years))
     for category in CLASSES:
         vals = np.array(counts[category])
         if not vals.any():
             continue
         ax.bar(years, vals, bottom=bottom, label=CLASS_SHORT[category],
-               color=CLASS_COLORS[category], width=0.82, edgecolor="white", linewidth=0.3)
+               color=CLASS_COLORS[category], width=0.82,
+               edgecolor="#fbfbff", linewidth=0.45)
         bottom += vals
     ax.set_xlabel("Publication year")
     ax.set_ylabel("Number of papers")
     ax.set_xticks(years[::2])
-    ax.tick_params(length=2)
-    ax.legend(frameon=False, fontsize=7, loc="upper left")
+    ax.tick_params(length=2.5, width=0.7, colors="#252445")
+    ax.yaxis.grid(True, color="#d8d5f0", linewidth=0.5, alpha=0.75)
+    ax.set_axisbelow(True)
+    ax.xaxis.label.set_color("#252445")
+    ax.yaxis.label.set_color("#252445")
+    ax.legend(frameon=False, fontsize=7, loc="upper left", ncol=2,
+              handlelength=1.3, columnspacing=0.9, labelspacing=0.35)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color("#252445")
+        ax.spines[s].set_linewidth(0.8)
     fig.tight_layout(pad=0.3)
     _save(fig, outdir, "scientometric_trend")
 

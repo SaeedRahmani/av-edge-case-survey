@@ -1,34 +1,36 @@
 % AV edge-case survey update flowchart.
 % Insert with \input{figures/methodology_flow_living} inside a figure environment.
 \begin{tikzpicture}[
-    font=\scriptsize,
-    node distance=6mm and 10mm,
-    box/.style={draw, rounded corners=2pt, align=center, inner sep=4pt,
-                text width=42mm, minimum height=10mm, fill=blue!4, line width=0.5pt},
-    gate/.style={draw, rounded corners=2pt, align=center, inner sep=4pt,
-                 text width=44mm, minimum height=10mm, fill=yellow!10, line width=0.5pt},
-    outbox/.style={draw, rounded corners=2pt, align=center, inner sep=4pt,
-                   text width=42mm, minimum height=10mm, fill=green!6, line width=0.5pt},
-    arr/.style={-{Latex[length=2mm]}, line width=0.5pt},
-    soft/.style={-{Latex[length=2mm]}, dashed, line width=0.5pt},
+    font=\sffamily\footnotesize,
+    node distance=7mm and 10mm,
+    box/.style={draw, rounded corners=2pt, align=center, text width=36mm,
+        minimum height=9mm, inner sep=3pt, fill=white},
+    flowstep/.style={box, draw=blue!60!black, fill=blue!5},
+    review/.style={box, draw=orange!75!black, fill=orange!8},
+    result/.style={box, draw=green!45!black, fill=green!8},
+    arrow/.style={-{Latex[length=2mm]}, thick, draw=gray!75}
 ]
-\node[box] (schedule) {Monthly GitHub Actions\\ or manual workflow run};
-\node[box, below=of schedule] (harvest) {OpenAlex retrieval\\ automated-driving x edge-case\\ phrase queries to run date};
-\node[box, below=of harvest] (dedup) {Filtering and de-duplication\\ DOI, OpenAlex ID, normalized title,\\ source and paper-owned exclusions};
-\node[gate, below=of dedup] (embed) {Sentence-BERT screening\\ seed-similarity gate and\\ topical-margin gate};
-\node[gate, below=of embed] (rank) {Classification and ranking\\ nearest centroid, relevance score,\\ class and year ceilings};
-\node[outbox, below=of rank] (append) {Append policy\\ retain existing discoveries and\\ add at most five new papers};
-\node[outbox, below=of append] (publish) {Published outputs\\ candidates, discovered set,\\ bibliography and figures};
 
-\node[box, right=18mm of embed] (seed) {Frozen seed corpus\\ paper references labelled by\\ uncommented manuscript citations};
-\node[box, right=18mm of append] (review) {LLM-assisted review point\\ borderline records, JSON rationale,\\ disagreement flags for humans};
+\node[flowstep] (papers) {Papers already used\\in the manuscript};
+\node[flowstep, below=of papers] (search) {Search OpenAlex\\for new related papers};
+\node[flowstep, below=of search] (clean) {Clean results\\remove duplicates and unsuitable sources};
+\node[flowstep, below=of clean] (check) {Check relevance\\using titles and abstracts};
+\node[flowstep, below=of check] (classify) {Classify papers\\by the manuscript structure};
+\node[review, below=of classify] (review) {Human review\\for uncertain papers};
+\node[result, below=of review] (update) {Update living bibliography\\and repository paper list};
 
-\draw[arr] (schedule) -- (harvest);
-\draw[arr] (harvest) -- (dedup);
-\draw[arr] (dedup) -- (embed);
-\draw[arr] (embed) -- (rank);
-\draw[arr] (rank) -- (append);
-\draw[arr] (append) -- (publish);
-\draw[soft] (seed.west) -- (embed.east);
-\draw[soft] (review.west) -- (append.east);
+\node[review, right=15mm of review] (llm) {Optional LLM check\\second opinion only};
+\node[flowstep, right=15mm of classify] (limit) {Monthly limit\\up to five additions};
+
+\draw[arrow] (papers) -- (search);
+\draw[arrow] (search) -- (clean);
+\draw[arrow] (clean) -- (check);
+\draw[arrow] (check) -- (classify);
+\draw[arrow] (classify) -- (review);
+\draw[arrow] (review) -- (update);
+\draw[arrow] (classify) -- (limit);
+\draw[arrow] (limit) -- (review);
+\draw[arrow] (review) -- (llm);
+\draw[arrow] (llm) -- (review);
+
 \end{tikzpicture}

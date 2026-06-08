@@ -6,6 +6,7 @@ the survey's categories, and mirror that generated list into README.md. Run
 after discover.py.
 """
 import csv
+import json
 import os
 from collections import Counter, defaultdict
 from datetime import date
@@ -18,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DATA = os.path.join(ROOT, "data")
 CONFIG = os.path.join(ROOT, "config.yaml")
+HARVEST_CACHE = os.path.join(DATA, "_harvest_cache.json")
 
 ORDER = FIGURE_CATEGORIES + ["Background"]
 README_BIB_START = "<!-- BEGIN GENERATED BIBLIOGRAPHY -->"
@@ -34,15 +36,14 @@ def link(r):
     return t
 
 
-def bibliography_lines(rows, by, n_seed, n_new, snapshot_date):
+def bibliography_lines(rows, by, n_manuscript, n_new, snapshot_date):
     lines = [
         "# Living Bibliography - Edge-Case Detection & Assessment for Automated Driving",
         "",
-        f"**{len(rows)} studies** ({n_seed} expert-curated seed + {n_new} "
+        f"**{len(rows)} studies** ({n_manuscript} papers from the manuscript + {n_new} "
         "auto-discovered). NEW = auto-discovered; REVIEW = flagged for human "
-        "review; category from the survey section (seed) or the centroid "
-        "classifier (discovered), with optional LLM audit fields for borderline "
-        "records.",
+        "review; category comes from the manuscript section for original papers "
+        "or from the classifier for auto-discovered papers.",
         "",
         f"Snapshot includes records through `{snapshot_date}`. Scientometric "
         "figures use an explicit year cutoff and currently omit records after "
@@ -77,7 +78,7 @@ def readme_intro():
         "This repository keeps the survey bibliography reproducible and current. "
         "It starts from the expert-curated papers used in the manuscript, "
         "searches OpenAlex for recent automated-driving edge-case literature, "
-        "screens candidates with calibrated embedding-based relevance gates, "
+        "checks candidates with calibrated embedding-based relevance criteria, "
         "assigns them to the survey taxonomy, and appends at most five new "
         "papers during each scheduled monthly update.",
         "",
@@ -93,7 +94,7 @@ def readme_intro():
         "",
         "- [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md): generated bibliography grouped by category.",
         "- [METHODOLOGY.md](METHODOLOGY.md): detailed pipeline description and figures.",
-        "- [data/](data): seed corpus, discovered papers, scored candidates, and merged bibliography CSV.",
+        "- [data/](data): manuscript paper list, discovered papers, scored candidates, and merged bibliography CSV.",
         "- [src/](src): harvesting, screening, classification, reporting, and figure-generation code.",
         "- [figures/](figures): generated scientometric and PRISMA-style outputs.",
         "",
@@ -126,6 +127,20 @@ def write_readme(bib_lines):
         f.write(text)
 
 
+def snapshot_date_from(config):
+    if config.get("max_publication_date"):
+        return config["max_publication_date"]
+    try:
+        with open(HARVEST_CACHE, encoding="utf-8") as f:
+            cache = json.load(f)
+        cached_date = (cache.get("signature") or {}).get("max_publication_date")
+        if cached_date:
+            return cached_date
+    except (FileNotFoundError, json.JSONDecodeError, AttributeError):
+        pass
+    return date.today().isoformat()
+
+
 def main():
     with open(os.path.join(DATA, "bibliography.csv"), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -133,22 +148,22 @@ def main():
     for r in rows:
         by[r.get("category") or "Background"].append(r)
 
-    n_seed = sum(1 for r in rows if r.get("source") == "seed")
+    n_manuscript = sum(1 for r in rows if r.get("source") == "seed")
     n_new = sum(1 for r in rows if r.get("source") == "auto-discovered")
     try:
         with open(CONFIG, encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
     except FileNotFoundError:
         config = {}
-    snapshot_date = config.get("max_publication_date") or date.today().isoformat()
+    snapshot_date = snapshot_date_from(config)
 
-    lines = bibliography_lines(rows, by, n_seed, n_new, snapshot_date)
+    lines = bibliography_lines(rows, by, n_manuscript, n_new, snapshot_date)
 
     with open(os.path.join(ROOT, "BIBLIOGRAPHY.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     write_readme(lines)
     dist = Counter(r.get("category") or "Background" for r in rows)
-    print(f"wrote BIBLIOGRAPHY.md ({len(rows)}: {n_seed} seed + {n_new} new)")
+    print(f"wrote BIBLIOGRAPHY.md ({len(rows)}: {n_manuscript} manuscript + {n_new} new)")
     print("wrote README.md bibliography section")
     print("  by category:", dict(dist))
 

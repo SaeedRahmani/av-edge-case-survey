@@ -5,36 +5,36 @@ This document contains the detailed workflow, figures, tuning parameters, and re
 ## How It Works
 
 ```text
-OpenAlex API -> harvest -> de-duplicate -> embed (Sentence-BERT)
-                                                    |
-   seed corpus (263 source records; 244 canonical works) --|
-                                                    v
-                      classify (nearest-centroid, trained on
-                       the survey's own section labels)
-                                                    v
-                           +------ two calibrated screening gates ------+
-                           | (a) topical relevance margin               |
-                           |     = sim(class centroid) - sim(off-topic) |
-                           | (b) seed similarity                        |
-                           |     = mean cosine to k nearest seed papers |
-                           | thresholds calibrated from the seed itself |
-                           | (leave-one-out percentiles)                |
-                           +--------------------------------------------+
-                                                    v
-           rank by relevance-led score, append <=5/month under class/year ceilings
-                                                    v
-                   discovered.csv - candidates_scored.csv - BIBLIOGRAPHY.md
+Papers used in the manuscript
+    |
+    v
+Search OpenAlex for new related papers
+    |
+    v
+Remove duplicates and unsuitable sources
+    |
+    v
+Check whether each paper fits the survey topic
+    |
+    v
+Classify papers by the manuscript structure
+    |
+    v
+Human review for uncertain cases
+    |
+    v
+Update the living bibliography and repository paper list
 ```
 
 ![AV edge-case survey methodology flowchart](figures/methodology_flow_living.png)
 
-**Why two gates and calibration?** Naively searching OpenAlex returns thousands of loosely related AV papers. To stay consistent with the survey's actual scope and avoid flooding the bibliography, a candidate must be (a) topically on the edge-case theme and (b) at least as close to the existing corpus as a median paper the authors already cite. Both thresholds are derived from the seed corpus by leave-one-out, so the screening is principled and reproducible rather than hand-picked.
+OpenAlex returns many loosely related automated-driving papers. To keep the living bibliography close to the paper's scope, each candidate is compared with the papers already used in the manuscript and checked for relevance to automated-driving edge cases. The scored candidate list is preserved in [`data/candidates_scored.csv`](data/candidates_scored.csv).
 
-The candidate list is ranked by a relevance-led score with a modest recency nudge (`recency_weight: 0.01` by default). On the first run, the pipeline bootstraps the curated living addition to 120 papers. After that, each monthly refresh retains the existing selected papers and appends at most five new papers, still under soft per-class and per-year ceilings. The full scored list is preserved in [`data/candidates_scored.csv`](data/candidates_scored.csv).
+On the first run, the repository added 120 carefully selected papers to the manuscript paper list. After that, each monthly refresh keeps the existing selected papers and adds at most five new papers, so the living bibliography can grow without becoming unmanageable.
 
-In the most recent run (OpenAlex snapshot through **2026-06-07**): **2,830** records were harvested; **68** preprint-mill sources, **1** configured source/title exclusion, and **36** paper-owned seed/reference overlaps were dropped; **206** duplicate or near-duplicate records were also removed; **2,519** records remained after de-duplication; **706** passed the relevance floor; and **120** bootstrap curated additions were merged with the **244**-work canonical seed into a **364**-study living bibliography. The discovered mix is Trajectory 72 / Perception 35 / Knowledge 13, with year counts 2023:20 / 2024:32 / 2025:47 / 2026:21.
+In the most recent run (OpenAlex snapshot through **2026-06-07**): **2,830** records were found; unsuitable sources, paper-owned overlaps, and duplicates were removed; **2,519** records remained after cleaning; **706** passed the relevance check; and **120** selected additions were merged with the **244** manuscript papers into a **364**-study living bibliography. The discovered mix is Trajectory 72 / Perception 35 / Knowledge 13, with year counts 2023:20 / 2024:32 / 2025:47 / 2026:21.
 
-Future monthly runs add at most five more papers that pass the same gates and ranking rules. The discovered set is intentionally broader and more recent than the survey itself, which is the point of a living companion. Scientometric figures use a separate cutoff and omit 2026, ending at 2025.
+Future monthly runs add at most five more papers that pass the same relevance checks and ranking rules. The added papers are intentionally broader and more recent than the manuscript itself, which is the point of a living companion. Scientometric figures use a separate cutoff and omit 2026, ending at 2025.
 
 ## Categories and Assignment
 
@@ -43,11 +43,11 @@ Future monthly runs add at most five more papers that pass the same gates and ra
 | **Perception-related** | Detecting/generating edge cases in sensing and perception: anomaly, OOD, segmentation, and related methods. |
 | **Trajectory-related** | Safety-critical scenarios, scenario generation, surrogate safety, falsification, and trajectory-level evaluation. |
 | **Knowledge-driven** | Expert, ontology, and ODD-driven scenario definition and criticality reasoning. |
-| **Assessment** | Metrics and evaluation of detection methods; ground-truth seed category only. |
+| **Assessment** | Metrics and evaluation of detection methods; present only for papers already classified in the manuscript. |
 
-Categories are not guessed from hand-written descriptions. Each seed paper is labelled by the uncommented citation in the section of the survey that reviews it in the source manuscript. Those ground-truth labels are stored in [`data/seed_corpus.csv`](data/seed_corpus.csv). The class prototypes (centroids) of those ground-truth papers then classify newly discovered papers through [`src/classify.py`](src/classify.py).
+Categories are not guessed from hand-written descriptions. Each manuscript paper is labelled by the section of the survey that reviews it. Those labels are stored in the manuscript-paper CSV, [`data/seed_corpus.csv`](data/seed_corpus.csv). New papers are then classified according to the same manuscript structure through [`src/classify.py`](src/classify.py).
 
-On the seed corpus, this classifier scores **76% leave-one-out accuracy**: Perception 89%, Trajectory 60%, and Knowledge 76%. *Assessment* overlaps the methods it evaluates, so it is kept as a ground-truth-only seed category and is not an automated target.
+On the manuscript paper list, this classifier scores **76% leave-one-out accuracy**: Perception 89%, Trajectory 60%, and Knowledge 76%. *Assessment* overlaps the methods it evaluates, so it is kept as a manuscript-only category and is not an automated target.
 
 ## Repository Layout
 
@@ -65,12 +65,8 @@ av-edge-case-survey/
 |  |- discover.py               # harvest, screen, classify, select, write
 |  |- figures.py                # scientometric figures
 |  `- report.py                 # builds BIBLIOGRAPHY.md and updates README.md
-|- data/
-|  |- seed_corpus.csv           # 244 canonical seed works + labels
-|  |- discovered.csv            # curated living additions
-|  |- candidates_scored.csv     # full scored candidate list
-|  `- bibliography.csv          # merged seed + discovered corpus
-|- figures/                     # living-corpus figures and PRISMA flow
+|- data/                        # paper lists and scored candidate tables
+|- figures/                     # living-bibliography figures and PRISMA flow
 `- .github/workflows/update.yml # monthly auto-refresh
 ```
 
@@ -97,7 +93,7 @@ Strictness is controlled in [`src/discover.py`](src/discover.py) and mirrored in
 
 | Parameter | Meaning | Default |
 | --- | --- | --- |
-| `SEED_SIM_PCTL` | Seed-similarity floor, percentile of seed leave-one-out distribution. | 50 |
+| `SEED_SIM_PCTL` | Minimum similarity to papers already used in the manuscript. | 50 |
 | `MARGIN_PCTL` | Topical-relevance floor. | 25 |
 | `BOOTSTRAP_TARGET` | First-run size of the curated living addition when `discovered.csv` is empty. | 120 |
 | `MONTHLY_ADD_LIMIT` | Maximum number of newly selected papers appended by each later run. | 5 |
@@ -111,7 +107,7 @@ Raise the percentiles for a stricter set, or lower `MONTHLY_ADD_LIMIT` for slowe
 
 ## Optional Modular-LLM Second Opinion
 
-The default classifier runs without any key: Sentence-BERT, calibrated gates, and nearest-centroid taxonomy. For a higher-accuracy audit pass over borderline (`needs_review`) papers, enable the optional modular LLM layer:
+The default classifier runs without any key: Sentence-BERT, calibrated relevance checks, and nearest-centroid taxonomy. For a higher-accuracy audit pass over borderline (`needs_review`) papers, enable the optional modular LLM layer:
 
 ```bash
 pip install anthropic
@@ -125,9 +121,9 @@ Use `--no-append` when you only want to refresh scores or LLM audit fields for t
 
 ## Figures
 
-[`src/figures.py`](src/figures.py) regenerates the scientometric figures for the living corpus, seed plus discovered papers, into [`figures/`](figures): a publication-per-year trend, a BERTopic topic-by-class heatmap, a curated keyword co-occurrence network, and the PRISMA flow. A separate static methodology flowchart in [`figures/methodology_flow_living.tex`](figures/methodology_flow_living.tex) summarizes the monthly update workflow.
+[`src/figures.py`](src/figures.py) regenerates the scientometric figures for the living bibliography, manuscript papers plus added papers, into [`figures/`](figures): a publication-per-year trend, a BERTopic topic-by-class heatmap, a curated keyword co-occurrence network, and the PRISMA flow. A separate static methodology flowchart in [`figures/methodology_flow_living.tex`](figures/methodology_flow_living.tex) summarizes the monthly update workflow.
 
-The bibliography may include 2026 records, but all scientometric panels generated with `--trend-max 2025` exclude records after 2025. These are the repository's own figures and are deliberately distinct from the figures in the paper, which characterize the smaller, fixed survey corpus.
+The bibliography may include 2026 records, but all scientometric panels generated with `--trend-max 2025` exclude records after 2025. These are the repository's own figures and are deliberately distinct from the figures in the paper, which characterize the smaller, fixed manuscript paper list.
 
 ```bash
 python src/figures.py --input data/bibliography.csv --outdir figures --trend-min 2015 --trend-max 2025

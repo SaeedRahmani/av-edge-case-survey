@@ -1,6 +1,6 @@
 # Living Bibliography - Edge-Case Detection & Assessment for Automated Driving
 
-**364 studies** (244 expert-curated seed + 120 auto-discovered). NEW = auto-discovered; REVIEW = flagged for human review; category from the survey section (seed) or the centroid classifier (discovered), with optional LLM audit fields for borderline records.
+**364 studies** (244 papers from the manuscript + 120 auto-discovered). NEW = auto-discovered; REVIEW = flagged for human review; category comes from the manuscript section for original papers or from the classifier for auto-discovered papers.
 
 Snapshot includes records through `2026-06-07`. Scientometric figures use an explicit year cutoff and currently omit records after 2025.
 
