@@ -8,6 +8,14 @@ The automation is meant to support transparent literature discovery, not to repl
 
 For the detailed workflow, figures, tuning parameters, and reproducibility notes, see [METHODOLOGY.md](METHODOLOGY.md). The standalone generated bibliography is also kept in [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md).
 
+## Citation
+
+Please cite:
+
+> S. Rahmani et al., "Edge Case Detection in Automated Driving: Methods, Challenges, and Future Directions," in IEEE Transactions on Intelligent Transportation Systems, doi: [10.1109/TITS.2026.3715674](https://doi.org/10.1109/TITS.2026.3715674).
+
+keywords: {Modeling;Signal detection;Safety;Vehicles;Testing;Surveys;Anomaly detection;Ontologies;Trajectory;Labeling;Autonomous driving;edge case;artificial intelligence;corner case;methods for safety}
+
 ## Repository Contents
 
 - [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md): generated bibliography grouped by category.
